@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+
+ROOT="/opt/CasaBruno-Platform"
+
+echo
+echo "=========================================="
+echo "           CBOS BUILDER"
+echo "=========================================="
+echo
+
+echo "[1/7] Validando estrutura"
+
+test -d "$ROOT/backend" || exit 1
+
+test -d "$ROOT/frontend" || exit 1
+
+test -d "$ROOT/ai" || exit 1
+
+echo "[2/7] Builder"
+
+echo "[3/7] Packages"
+
+echo "[4/7] Validator"
+
+echo "[5/7] Release"
+
+echo "[6/7] Compressão"
+
+mkdir -p "$ROOT/builder/releases"
+
+tar \
+-czpf \
+"$ROOT/builder/releases/latest.cbos" \
+-C "$ROOT" \
+backend \
+frontend \
+ai \
+docs \
+tools \
+docker-compose.yml
+
+echo "[7/7] Finalizado"
+
+echo
+
+ls -lh "$ROOT/builder/releases/latest.cbos"
+
+echo

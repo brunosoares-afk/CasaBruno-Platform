@@ -1,0 +1,29 @@
+name: CBOS Release 1.0
+
+codename: Genesis
+
+builder: CBOS Builder
+
+format: cbos-package
+
+packages:
+
+  - core
+
+  - backend
+
+  - frontend
+
+  - fred
+
+  - docker
+
+  - homeassistant
+
+  - docs
+
+  - tools
+
+  - tests
+
+  - plugins

@@ -1,0 +1,19 @@
+backup:
+
+  version: 1.0.0
+
+  manager: FRED
+
+components:
+
+  - full
+  - incremental
+  - differential
+  - database
+  - docker
+  - homeassistant
+  - config
+  - runtime
+  - logs
+  - restore
+  - schedules

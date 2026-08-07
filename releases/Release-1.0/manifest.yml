@@ -1,0 +1,29 @@
+name: Release-1.0
+
+version: 1.0.0
+
+codename: Genesis
+
+status: development
+
+author: Bruno Cordeiro
+
+platform: CasaBruno Operating System
+
+ai: FRED
+
+builder: enabled
+
+components:
+
+  - Backend
+  - Frontend
+  - FRED
+  - CLI
+  - Builder
+  - Patch Engine
+  - Sprint Manager
+  - Docker
+  - Home Assistant
+
+release_date: 2026-07-07

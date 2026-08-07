@@ -1,0 +1,20 @@
+documentation:
+
+  version: 1.0.0
+
+  manager: FRED
+
+components:
+
+  - api
+  - backend
+  - frontend
+  - fred
+  - sdk
+  - modules
+  - plugins
+  - releases
+  - tutorials
+  - reference
+  - changelog
+  - assets

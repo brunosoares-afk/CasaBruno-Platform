@@ -1,0 +1,20 @@
+devtools:
+
+  version: 1.0.0
+
+  manager: FRED
+
+components:
+
+  - cli
+  - debug
+  - profiler
+  - benchmarks
+  - generators
+  - scaffolding
+  - templates
+  - scripts
+  - hooks
+  - tools
+  - runtime
+  - logs

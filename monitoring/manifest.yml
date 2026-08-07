@@ -1,0 +1,20 @@
+monitoring:
+
+  version: 1.0.0
+
+  manager: FRED
+
+components:
+
+  - prometheus
+  - grafana
+  - loki
+  - alertmanager
+  - exporters
+  - metrics
+  - dashboards
+  - alerts
+  - logs
+  - traces
+  - status
+  - health

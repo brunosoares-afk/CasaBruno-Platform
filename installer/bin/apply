@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+ROOT="/opt/CasaBruno-Platform"
+
+SPRINT="$1"
+
+if [ -z "$SPRINT" ]; then
+    echo "Uso: cbos-install apply <sprint>"
+    exit 1
+fi
+
+FILE="$ROOT/installer/sprints/$SPRINT/update.sh"
+
+if [ ! -f "$FILE" ]; then
+    echo "Sprint $SPRINT inexistente."
+    exit 1
+fi
+
+bash "$FILE"

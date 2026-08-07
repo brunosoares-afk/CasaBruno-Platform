@@ -1,0 +1,20 @@
+runtime:
+
+  version: 1.0
+
+  manager: FRED
+
+directories:
+
+  - pid
+  - socket
+  - cache
+  - tmp
+  - logs
+  - events
+  - jobs
+  - queue
+  - session
+  - state
+  - metrics
+  - health

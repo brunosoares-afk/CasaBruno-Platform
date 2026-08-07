@@ -1,0 +1,20 @@
+registry:
+
+  version: 1.0.0
+
+  manager: FRED
+
+components:
+
+  - modules
+  - services
+  - plugins
+  - devices
+  - users
+  - automations
+  - apis
+  - integrations
+  - packages
+  - releases
+  - runtime
+  - system

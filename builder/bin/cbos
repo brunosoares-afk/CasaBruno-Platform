@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+
+ROOT="/opt/CasaBruno-Platform"
+
+case "$1" in
+
+build)
+
+"$ROOT/builder/bin/cbos-build"
+
+;;
+
+version)
+
+cat "$ROOT/builder/manifest.yml"
+
+;;
+
+doctor)
+
+echo
+
+echo "========== CBOS DOCTOR =========="
+
+echo
+
+dirs=(
+backend
+frontend
+ai
+builder
+docs
+tools
+sprints
+)
+
+for d in "${dirs[@]}"
+do
+
+if [ -d "$ROOT/$d" ]; then
+echo "[ OK ] $d"
+else
+echo "[FAIL] $d"
+fi
+
+done
+
+;;
+
+release)
+
+"$ROOT/releases/Release-1.0/release.sh"
+
+;;
+
+validate)
+
+"$ROOT/releases/Release-1.0/validate.sh"
+
+;;
+
+*)
+
+echo
+
+echo "CBOS Builder"
+
+echo
+
+echo "cbos build"
+echo "cbos doctor"
+echo "cbos validate"
+echo "cbos release"
+echo "cbos version"
+
+;;
+
+esac

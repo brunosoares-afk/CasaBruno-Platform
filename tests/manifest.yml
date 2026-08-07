@@ -1,0 +1,19 @@
+tests:
+
+  version: 1.0.0
+
+  manager: FRED
+
+suites:
+
+  - unit
+  - integration
+  - e2e
+  - performance
+  - security
+  - api
+  - frontend
+  - backend
+  - fred
+  - docker
+  - homeassistant

@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+ROOT="/opt/CasaBruno-Platform"
+
+source "$ROOT/tools/lib/config.sh"
+source "$ROOT/tools/lib/banner.sh"
+
+case "$1" in
+
+doctor)
+    bash "$ROOT/tools/commands/doctor.sh"
+;;
+
+update)
+    bash "$ROOT/tools/commands/update.sh"
+;;
+
+version)
+    bash "$ROOT/tools/commands/version.sh"
+;;
+
+status)
+    bash "$ROOT/tools/commands/status.sh"
+;;
+
+*)
+    banner
+
+    cat << MENU
+
+Comandos
+
+cbos doctor
+cbos version
+cbos status
+
+MENU
+
+;;
+
+esac

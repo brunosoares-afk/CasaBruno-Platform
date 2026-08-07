@@ -1,0 +1,158 @@
+.
+├── backend
+│   ├── app
+│   │   ├── config
+│   │   │   └── settings.py
+│   │   ├── main.py
+│   │   ├── models
+│   │   ├── routers
+│   │   │   ├── dashboard.py
+│   │   │   ├── docker.py
+│   │   │   ├── fred.py
+│   │   │   ├── homeassistant.py
+│   │   │   ├── mikrotik.py
+│   │   │   ├── network.py
+│   │   │   └── system.py
+│   │   ├── services
+│   │   │   ├── automation_engine.py
+│   │   │   ├── automation_service.py
+│   │   │   ├── command_parser.py
+│   │   │   ├── dashboard_service.py
+│   │   │   ├── device_registry.py
+│   │   │   ├── device_service.py
+│   │   │   ├── docker_service.py
+│   │   │   ├── fred_ai.py
+│   │   │   ├── fred_service.py
+│   │   │   ├── fred_service.py.bkp
+│   │   │   ├── fred_service.py.original
+│   │   │   ├── homeassistant_service.py
+│   │   │   ├── intent_engine.py
+│   │   │   ├── location_service.py
+│   │   │   ├── response_builder.py
+│   │   │   ├── summary_service.py
+│   │   │   ├── system.py
+│   │   │   └── weather_service.py
+│   │   └── utils
+│   ├── Dockerfile
+│   └── requirements.txt
+├── backend.zip
+├── backups
+│   ├── CBOS_v0.1.x_backend_20260630_0958.tar.gz
+│   ├── CBOS_v0.2.0_backend_20260630_1351.tar.gz
+│   ├── CBOS_v0.2.0_frontend_20260630_1351.tar.gz
+│   └── docker-compose.yml.20260630_1352
+├── cbos_codigo_completo.txt
+├── CHANGELOG.md
+├── docker-compose.yml
+├── .env
+├── estrutura_cbos.txt
+├── fred_core_audit.txt
+├── frontend
+│   ├── assets
+│   │   ├── icons
+│   │   └── images
+│   ├── context
+│   ├── css
+│   │   └── style.css
+│   ├── eslint.config.js
+│   ├── .gitignore
+│   ├── hooks
+│   ├── index.html
+│   ├── js
+│   │   └── app.js
+│   ├── layouts
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── pages
+│   ├── public
+│   │   ├── favicon.svg
+│   │   └── icons.svg
+│   ├── README.md
+│   ├── src
+│   │   ├── api
+│   │   │   ├── api.js
+│   │   │   └── statusService.js
+│   │   ├── App.jsx
+│   │   ├── assets
+│   │   │   ├── hero.png
+│   │   │   └── icons
+│   │   ├── components
+│   │   │   ├── cards
+│   │   │   │   └── StatusCard.jsx
+│   │   │   ├── dashboard
+│   │   │   │   ├── AlertPanel.jsx
+│   │   │   │   ├── ContainerList.jsx
+│   │   │   │   ├── DockerContainers.jsx
+│   │   │   │   ├── DockerPanel.jsx
+│   │   │   │   ├── GaugeCard.jsx
+│   │   │   │   ├── HeaderStats.jsx
+│   │   │   │   ├── HomeAssistantPanel.jsx
+│   │   │   │   ├── NetworkPanel.jsx
+│   │   │   │   ├── QuickActions.jsx
+│   │   │   │   ├── ResourceCharts.jsx
+│   │   │   │   ├── SystemCards.jsx
+│   │   │   │   └── SystemStatus.jsx
+│   │   │   ├── Dashboard.jsx
+│   │   │   ├── DashboardPage.jsx
+│   │   │   ├── Header.jsx
+│   │   │   ├── layout
+│   │   │   │   ├── Header.jsx
+│   │   │   │   ├── Layout.jsx
+│   │   │   │   └── Sidebar.jsx
+│   │   │   ├── Layout.jsx
+│   │   │   ├── Sidebar.jsx
+│   │   │   └── StatusCard.jsx
+│   │   ├── contexts
+│   │   ├── hooks
+│   │   │   └── useStatus.js
+│   │   ├── layout
+│   │   │   ├── Header.jsx
+│   │   │   ├── Layout.jsx
+│   │   │   └── Sidebar.jsx
+│   │   ├── main.jsx
+│   │   ├── modules
+│   │   │   ├── dashboard
+│   │   │   │   ├── components
+│   │   │   │   └── services
+│   │   │   ├── docker
+│   │   │   │   ├── components
+│   │   │   │   └── services
+│   │   │   ├── homeassistant
+│   │   │   │   ├── components
+│   │   │   │   └── services
+│   │   │   ├── jarvis
+│   │   │   │   ├── components
+│   │   │   │   └── services
+│   │   │   ├── mikrotik
+│   │   │   │   ├── components
+│   │   │   │   └── services
+│   │   │   ├── settings
+│   │   │   │   ├── components
+│   │   │   │   └── services
+│   │   │   └── wireguard
+│   │   │       ├── components
+│   │   │       └── services
+│   │   ├── pages
+│   │   │   ├── Dashboard.jsx
+│   │   │   ├── Docker.jsx
+│   │   │   ├── HomeAssistant.jsx
+│   │   │   ├── Mikrotik.jsx
+│   │   │   ├── Network.jsx
+│   │   │   └── Settings.jsx
+│   │   ├── services
+│   │   │   └── api.js
+│   │   ├── styles
+│   │   │   └── global.css
+│   │   ├── theme
+│   │   │   └── theme.js
+│   │   ├── utils
+│   │   └── widgets
+│   └── vite.config.js
+├── .gitignore
+├── README.md
+├── releases
+│   └── v0.2.0
+│       └── tree.txt
+└── ROADMAP.md
+
+61 directories, 95 files

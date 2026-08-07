@@ -1,0 +1,20 @@
+configuration:
+
+  version: 1.0.0
+
+  manager: FRED
+
+components:
+
+  - system
+  - network
+  - docker
+  - homeassistant
+  - fred
+  - api
+  - frontend
+  - backend
+  - plugins
+  - modules
+  - runtime
+  - environment

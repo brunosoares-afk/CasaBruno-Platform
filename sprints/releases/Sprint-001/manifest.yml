@@ -1,0 +1,19 @@
+name: Sprint-001
+version: 1.0.0
+release: Release-1.0
+author: Bruno Cordeiro
+created: 2026-07-07
+
+description: Fundação da arquitetura do CBOS.
+
+tasks:
+  - Arquitetura
+  - Estrutura
+  - CLI
+  - Backend
+  - Frontend
+  - FRED
+  - Docker
+  - Documentação
+
+status: development

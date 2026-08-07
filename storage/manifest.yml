@@ -1,0 +1,20 @@
+storage:
+
+  version: 1.0.0
+
+  manager: FRED
+
+components:
+
+  - database
+  - backups
+  - snapshots
+  - archives
+  - packages
+  - artifacts
+  - uploads
+  - downloads
+  - temp
+  - cache
+  - logs
+  - reports

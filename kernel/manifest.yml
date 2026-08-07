@@ -1,0 +1,22 @@
+kernel:
+
+  name: CBOS Kernel
+
+  version: 1.0.0
+
+  ai: FRED
+
+components:
+
+  - boot
+  - init
+  - loader
+  - router
+  - lifecycle
+  - events
+  - hooks
+  - drivers
+  - managers
+  - providers
+  - registry
+  - runtime

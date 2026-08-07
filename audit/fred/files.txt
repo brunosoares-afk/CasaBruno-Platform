@@ -1,0 +1,2 @@
+ai/memory/.gitkeep
+ai/models/.gitkeep

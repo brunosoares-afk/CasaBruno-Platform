@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+ROOT="/opt/CasaBruno-Platform"
+
+echo
+echo "========================================"
+echo "          CBOS CORE MANAGER"
+echo "========================================"
+echo
+
+find "$ROOT/core" -mindepth 1 -maxdepth 1 -type d | sort | xargs -n1 basename
+
+echo

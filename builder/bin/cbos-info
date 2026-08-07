@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+ROOT="/opt/CasaBruno-Platform"
+
+echo
+echo "=========================================="
+echo "          CBOS INFORMATION"
+echo "=========================================="
+echo
+
+echo "Platform : CasaBruno Operating System"
+echo "Builder  : 2.0.0"
+echo "AI       : FRED"
+echo "Root     : $ROOT"
+echo
+
+echo "Directories"
+
+tree -L 2 "$ROOT/builder"
+
+echo

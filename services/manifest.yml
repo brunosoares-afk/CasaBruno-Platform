@@ -1,0 +1,20 @@
+services:
+
+  enabled: true
+
+  manager: FRED
+
+core:
+
+  - api
+  - ai
+  - homeassistant
+  - docker
+  - network
+  - system
+  - storage
+  - security
+  - notifications
+  - scheduler
+  - websocket
+  - database

@@ -1,0 +1,20 @@
+automation:
+
+  version: 1.0.0
+
+  manager: FRED
+
+components:
+
+  - workflows
+  - rules
+  - events
+  - triggers
+  - actions
+  - schedules
+  - scenes
+  - scripts
+  - templates
+  - history
+  - runtime
+  - validators
