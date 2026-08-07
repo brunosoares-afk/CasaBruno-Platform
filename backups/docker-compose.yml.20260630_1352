@@ -1,0 +1,17 @@
+services:
+  cbos-api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+
+    container_name: cbos-api
+
+    restart: unless-stopped
+
+    ports:
+      - "8090:8088"
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./backend/app:/app
+      - ./frontend:/frontend

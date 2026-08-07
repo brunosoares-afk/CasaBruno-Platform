@@ -1,0 +1,15 @@
+plugins:
+
+  enabled: true
+
+  manager: FRED
+
+  install_path: /opt/CasaBruno-Platform/plugins/installed
+
+  repository_path: /opt/CasaBruno-Platform/plugins/repositories
+
+  cache_path: /opt/CasaBruno-Platform/plugins/cache
+
+  runtime_path: /opt/CasaBruno-Platform/plugins/runtime
+
+  log_path: /opt/CasaBruno-Platform/plugins/logs

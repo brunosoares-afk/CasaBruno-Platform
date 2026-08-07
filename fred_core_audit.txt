@@ -1,0 +1,1610 @@
+
+==============================================================
+ARQUIVO: fred_service.py
+==============================================================
+from services.homeassistant_service import (
+    call_service,
+    get_states,
+    get_homeassistant_status
+)
+
+from services.system import get_system_status
+
+
+def normalize(text):
+
+    return (
+        text.lower()
+        .replace("á", "a")
+        .replace("à", "a")
+        .replace("â", "a")
+        .replace("ã", "a")
+        .replace("é", "e")
+        .replace("ê", "e")
+        .replace("í", "i")
+        .replace("ó", "o")
+        .replace("ô", "o")
+        .replace("õ", "o")
+        .replace("ú", "u")
+        .replace("ç", "c")
+    )
+
+
+# ======================
+# APELIDOS FIXOS
+# ======================
+
+ALIASES = {
+    "lampada cozinha": "switch.lampada_cozinha_switch_1",
+    "portao": "switch.portao_casa_switch_1",
+    "portao casa": "switch.portao_casa_switch_1"
+}
+
+
+def find_alias(command):
+
+    cmd = normalize(command)
+
+    for alias, entity_id in ALIASES.items():
+
+        if normalize(alias) in cmd:
+            return entity_id
+
+    return None
+
+
+def get_entity(entity_id):
+
+    entities = get_states()
+
+    for entity in entities:
+
+        if entity.get("entity_id") == entity_id:
+            return entity
+
+    return None
+
+
+def match_entity(command, friendly_name):
+
+    cmd = normalize(command)
+    name = normalize(friendly_name)
+
+    if cmd in name:
+        return True
+
+    cmd_words = [
+        w for w in cmd.split()
+        if len(w) > 2
+    ]
+
+    matches = 0
+
+    for word in cmd_words:
+
+        if word in name:
+            matches += 1
+
+    return matches >= 2
+
+
+def execute(command: str):
+
+    command = command.lower()
+
+    entities = get_states()
+
+    # ======================
+    # DISPOSITIVOS
+    # ======================
+
+    if "dispositivos" in command:
+
+        devices = []
+
+        for entity in entities:
+
+            devices.append({
+                "entity_id": entity.get("entity_id"),
+                "name": entity.get(
+                    "attributes",
+                    {}
+                ).get(
+                    "friendly_name",
+                    entity.get("entity_id")
+                ),
+                "state": entity.get("state")
+            })
+
+        return {
+            "devices": devices
+        }
+
+    # ======================
+    # BATERIA CELULAR
+    # ======================
+
+    if (
+        "bateria celular" in command
+        or "nivel bateria" in command
+        or "nível bateria" in command
+        or "quanto de bateria" in command
+    ):
+
+        battery = get_entity(
+            "sensor.2303era42l_battery_level"
+        )
+
+        if battery:
+
+            return {
+                "message": f"Bateria do celular em {battery['state']}%"
+            }
+
+    # ======================
+    # CARREGANDO
+    # ======================
+
+    if (
+        "celular carregando" in command
+        or "esta carregando" in command
+        or "está carregando" in command
+    ):
+
+        state = get_entity(
+            "sensor.2303era42l_battery_state"
+        )
+
+        if state:
+
+            return {
+                "message": f"Status da bateria: {state['state']}"
+            }
+
+    # ======================
+    # TEMPERATURA CELULAR
+    # ======================
+
+    if (
+        "temperatura celular" in command
+        or "temperatura bateria" in command
+    ):
+
+        temp = get_entity(
+            "sensor.2303era42l_battery_temperature"
+        )
+
+        if temp:
+
+            return {
+                "message": f"Temperatura da bateria: {temp['state']}°C"
+            }
+
+    # ======================
+    # LOCALIZAÇÃO
+    # ======================
+
+    if (
+        "onde esta celular" in command
+        or "onde esta o celular" in command
+        or "onde está celular" in command
+        or "onde está o celular" in command
+        or "localizacao celular" in command
+        or "localização celular" in command
+    ):
+
+        location = get_entity(
+            "sensor.2303era42l_geocoded_location"
+        )
+
+        if location:
+
+            return {
+                "message": location["state"]
+            }
+
+    # ======================
+    # PORTÃO
+    # ======================
+
+    if (
+        "abrir portao" in command
+        or "abrir portão" in command
+    ):
+
+        return call_service(
+            "switch",
+            "turn_on",
+            "switch.portao_casa_switch_1"
+        )
+
+    # ======================
+    # LIGAR
+    # ======================
+
+    if (
+        "ligar" in command
+        and "desligar" not in command
+    ):
+
+        alias_entity = find_alias(command)
+
+        if alias_entity:
+
+            return call_service(
+                "switch",
+                "turn_on",
+                alias_entity
+            )
+
+        for entity in entities:
+
+            entity_id = entity.get("entity_id", "")
+
+            friendly_name = (
+                entity.get(
+                    "attributes",
+                    {}
+                ).get(
+                    "friendly_name",
+                    ""
+                )
+            )
+
+            if not friendly_name:
+                continue
+
+            if match_entity(command, friendly_name):
+
+                domain = entity_id.split(".")[0]
+
+                if domain in [
+                    "light",
+                    "switch",
+                    "fan",
+                    "climate",
+                    "media_player"
+                ]:
+
+                    return call_service(
+                        domain,
+                        "turn_on",
+                        entity_id
+                    )
+
+    # ======================
+    # DESLIGAR
+    # ======================
+
+    if "desligar" in command:
+
+        alias_entity = find_alias(command)
+
+        if alias_entity:
+
+            return call_service(
+                "switch",
+                "turn_off",
+                alias_entity
+            )
+
+        for entity in entities:
+
+            entity_id = entity.get("entity_id", "")
+
+            friendly_name = (
+                entity.get(
+                    "attributes",
+                    {}
+                ).get(
+                    "friendly_name",
+                    ""
+                )
+            )
+
+            if not friendly_name:
+                continue
+
+            if match_entity(command, friendly_name):
+
+                domain = entity_id.split(".")[0]
+
+                if domain in [
+                    "light",
+                    "switch",
+                    "fan",
+                    "climate",
+                    "media_player"
+                ]:
+
+                    return call_service(
+                        domain,
+                        "turn_off",
+                        entity_id
+                    )
+
+    # ======================
+    # STATUS
+    # ======================
+
+    if (
+        "status" in command
+        or "estado" in command
+        or "situacao" in command
+        or "situação" in command
+    ):
+
+        alias_entity = find_alias(command)
+
+        if alias_entity:
+
+            for entity in entities:
+
+                if entity.get("entity_id") == alias_entity:
+
+                    return {
+                        "entity": entity["entity_id"],
+                        "state": entity["state"],
+                        "attributes": entity["attributes"]
+                    }
+
+        for entity in entities:
+
+            friendly_name = (
+                entity.get(
+                    "attributes",
+                    {}
+                ).get(
+                    "friendly_name",
+                    ""
+                )
+            )
+
+            if not friendly_name:
+                continue
+
+            if match_entity(command, friendly_name):
+
+                return {
+                    "entity": entity["entity_id"],
+                    "state": entity["state"],
+                    "attributes": entity["attributes"]
+                }
+
+    # ======================
+    # CPU
+    # ======================
+
+    if "cpu" in command:
+
+        data = get_system_status()
+
+        return {
+            "message": f"CPU em {data['cpu_percent']}%"
+        }
+
+    # ======================
+    # MEMÓRIA
+    # ======================
+
+    if (
+        "memoria" in command
+        or "memória" in command
+        or "ram" in command
+    ):
+
+        data = get_system_status()
+
+        return {
+            "message": f"Memória em {data['memory_percent']}%"
+        }
+
+    # ======================
+    # HOME ASSISTANT
+    # ======================
+
+    if "home assistant" in command:
+
+        return get_homeassistant_status()
+
+    return {
+        "message": "Não encontrei um comando compatível."
+    }
+
+==============================================================
+ARQUIVO: fred_service.py.bkp
+==============================================================
+from services.homeassistant_service import (
+    call_service,
+    get_states,
+    get_homeassistant_status
+)
+
+from services.system import get_system_status
+
+
+def normalize(text):
+
+    return (
+        text.lower()
+        .replace("á", "a")
+        .replace("à", "a")
+        .replace("â", "a")
+        .replace("ã", "a")
+        .replace("é", "e")
+        .replace("ê", "e")
+        .replace("í", "i")
+        .replace("ó", "o")
+        .replace("ô", "o")
+        .replace("õ", "o")
+        .replace("ú", "u")
+        .replace("ç", "c")
+    )
+
+
+# ======================
+# APELIDOS FIXOS
+# ======================
+
+ALIASES = {
+    "lampada cozinha": "switch.lampada_cozinha_switch_1",
+    "portao": "switch.portao_casa_switch_1",
+    "portao casa": "switch.portao_casa_switch_1"
+}
+
+
+def find_alias(command):
+
+    cmd = normalize(command)
+
+    for alias, entity_id in ALIASES.items():
+
+        if normalize(alias) in cmd:
+            return entity_id
+
+    return None
+
+
+def get_entity(entity_id):
+
+    entities = get_states()
+
+    for entity in entities:
+
+        if entity.get("entity_id") == entity_id:
+            return entity
+
+    return None
+
+
+def match_entity(command, friendly_name):
+
+    cmd = normalize(command)
+    name = normalize(friendly_name)
+
+    if cmd in name:
+        return True
+
+    cmd_words = [
+        w for w in cmd.split()
+        if len(w) > 2
+    ]
+
+    matches = 0
+
+    for word in cmd_words:
+
+        if word in name:
+            matches += 1
+
+    return matches >= 2
+
+
+def execute(command: str):
+
+    command = command.lower()
+
+    entities = get_states()
+
+    # ======================
+    # DISPOSITIVOS
+    # ======================
+
+    if "dispositivos" in command:
+
+        devices = []
+
+        for entity in entities:
+
+            devices.append({
+                "entity_id": entity.get("entity_id"),
+                "name": entity.get(
+                    "attributes",
+                    {}
+                ).get(
+                    "friendly_name",
+                    entity.get("entity_id")
+                ),
+                "state": entity.get("state")
+            })
+
+        return {
+            "devices": devices
+        }
+
+    # ======================
+    # BATERIA CELULAR
+    # ======================
+
+    if (
+        "bateria celular" in command
+        or "nivel bateria" in command
+        or "nível bateria" in command
+        or "quanto de bateria" in command
+    ):
+
+        battery = get_entity(
+            "sensor.2303era42l_battery_level"
+        )
+
+        if battery:
+
+            return {
+                "message": f"Bateria do celular em {battery['state']}%"
+            }
+
+    # ======================
+    # CARREGANDO
+    # ======================
+
+    if (
+        "celular carregando" in command
+        or "esta carregando" in command
+        or "está carregando" in command
+    ):
+
+        state = get_entity(
+            "sensor.2303era42l_battery_state"
+        )
+
+        if state:
+
+            return {
+                "message": f"Status da bateria: {state['state']}"
+            }
+
+    # ======================
+    # TEMPERATURA CELULAR
+    # ======================
+
+    if (
+        "temperatura celular" in command
+        or "temperatura bateria" in command
+    ):
+
+        temp = get_entity(
+            "sensor.2303era42l_battery_temperature"
+        )
+
+        if temp:
+
+            return {
+                "message": f"Temperatura da bateria: {temp['state']}°C"
+            }
+
+    # ======================
+    # LOCALIZAÇÃO
+    # ======================
+
+    if (
+        "onde esta celular" in command
+        or "onde esta o celular" in command
+        or "onde está celular" in command
+        or "onde está o celular" in command
+        or "localizacao celular" in command
+        or "localização celular" in command
+    ):
+
+        location = get_entity(
+            "sensor.2303era42l_geocoded_location"
+        )
+
+        if location:
+
+            return {
+                "message": location["state"]
+            }
+
+    # ======================
+    # PORTÃO
+    # ======================
+
+    if (
+        "abrir portao" in command
+        or "abrir portão" in command
+    ):
+
+        return call_service(
+            "switch",
+            "turn_on",
+            "switch.portao_casa_switch_1"
+        )
+
+    # ======================
+    # LIGAR
+    # ======================
+
+    if (
+        "ligar" in command
+        and "desligar" not in command
+    ):
+
+        alias_entity = find_alias(command)
+
+        if alias_entity:
+
+            return call_service(
+                "switch",
+                "turn_on",
+                alias_entity
+            )
+
+        for entity in entities:
+
+            entity_id = entity.get("entity_id", "")
+
+            friendly_name = (
+                entity.get(
+                    "attributes",
+                    {}
+                ).get(
+                    "friendly_name",
+                    ""
+                )
+            )
+
+            if not friendly_name:
+                continue
+
+            if match_entity(command, friendly_name):
+
+                domain = entity_id.split(".")[0]
+
+                if domain in [
+                    "light",
+                    "switch",
+                    "fan",
+                    "climate",
+                    "media_player"
+                ]:
+
+                    return call_service(
+                        domain,
+                        "turn_on",
+                        entity_id
+                    )
+
+    # ======================
+    # DESLIGAR
+    # ======================
+
+    if "desligar" in command:
+
+        alias_entity = find_alias(command)
+
+        if alias_entity:
+
+            return call_service(
+                "switch",
+                "turn_off",
+                alias_entity
+            )
+
+        for entity in entities:
+
+            entity_id = entity.get("entity_id", "")
+
+            friendly_name = (
+                entity.get(
+                    "attributes",
+                    {}
+                ).get(
+                    "friendly_name",
+                    ""
+                )
+            )
+
+            if not friendly_name:
+                continue
+
+            if match_entity(command, friendly_name):
+
+                domain = entity_id.split(".")[0]
+
+                if domain in [
+                    "light",
+                    "switch",
+                    "fan",
+                    "climate",
+                    "media_player"
+                ]:
+
+                    return call_service(
+                        domain,
+                        "turn_off",
+                        entity_id
+                    )
+
+    # ======================
+    # STATUS
+    # ======================
+
+    if (
+        "status" in command
+        or "estado" in command
+        or "situacao" in command
+        or "situação" in command
+    ):
+
+        alias_entity = find_alias(command)
+
+        if alias_entity:
+
+            for entity in entities:
+
+                if entity.get("entity_id") == alias_entity:
+
+                    return {
+                        "entity": entity["entity_id"],
+                        "state": entity["state"],
+                        "attributes": entity["attributes"]
+                    }
+
+        for entity in entities:
+
+            friendly_name = (
+                entity.get(
+                    "attributes",
+                    {}
+                ).get(
+                    "friendly_name",
+                    ""
+                )
+            )
+
+            if not friendly_name:
+                continue
+
+            if match_entity(command, friendly_name):
+
+                return {
+                    "entity": entity["entity_id"],
+                    "state": entity["state"],
+                    "attributes": entity["attributes"]
+                }
+
+    # ======================
+    # CPU
+    # ======================
+
+    if "cpu" in command:
+
+        data = get_system_status()
+
+        return {
+            "message": f"CPU em {data['cpu_percent']}%"
+        }
+
+    # ======================
+    # MEMÓRIA
+    # ======================
+
+    if (
+        "memoria" in command
+        or "memória" in command
+        or "ram" in command
+    ):
+
+        data = get_system_status()
+
+        return {
+            "message": f"Memória em {data['memory_percent']}%"
+        }
+
+    # ======================
+    # HOME ASSISTANT
+    # ======================
+
+    if "home assistant" in command:
+
+        return get_homeassistant_status()
+
+    return {
+        "message": "Não encontrei um comando compatível."
+    }
+
+==============================================================
+ARQUIVO: fred_service.py.original
+==============================================================
+from services.homeassistant_service import (
+    call_service,
+    get_states,
+    get_homeassistant_status
+)
+
+from services.system import get_system_status
+
+
+def normalize(text):
+
+    return (
+        text.lower()
+        .replace("á", "a")
+        .replace("à", "a")
+        .replace("â", "a")
+        .replace("ã", "a")
+        .replace("é", "e")
+        .replace("ê", "e")
+        .replace("í", "i")
+        .replace("ó", "o")
+        .replace("ô", "o")
+        .replace("õ", "o")
+        .replace("ú", "u")
+        .replace("ç", "c")
+    )
+
+
+# ======================
+# APELIDOS FIXOS
+# ======================
+
+ALIASES = {
+    "lampada cozinha": "switch.lampada_cozinha_switch_1",
+    "portao": "switch.portao_casa_switch_1",
+    "portao casa": "switch.portao_casa_switch_1"
+}
+
+
+def find_alias(command):
+
+    cmd = normalize(command)
+
+    for alias, entity_id in ALIASES.items():
+
+        if normalize(alias) in cmd:
+            return entity_id
+
+    return None
+
+
+def get_entity(entity_id):
+
+    entities = get_states()
+
+    for entity in entities:
+
+        if entity.get("entity_id") == entity_id:
+            return entity
+
+    return None
+
+
+def match_entity(command, friendly_name):
+
+    cmd = normalize(command)
+    name = normalize(friendly_name)
+
+    if cmd in name:
+        return True
+
+    cmd_words = [
+        w for w in cmd.split()
+        if len(w) > 2
+    ]
+
+    matches = 0
+
+    for word in cmd_words:
+
+        if word in name:
+            matches += 1
+
+    return matches >= 2
+
+
+def execute(command: str):
+
+    command = command.lower()
+
+    entities = get_states()
+
+    # ======================
+    # DISPOSITIVOS
+    # ======================
+
+    if "dispositivos" in command:
+
+        devices = []
+
+        for entity in entities:
+
+            devices.append({
+                "entity_id": entity.get("entity_id"),
+                "name": entity.get(
+                    "attributes",
+                    {}
+                ).get(
+                    "friendly_name",
+                    entity.get("entity_id")
+                ),
+                "state": entity.get("state")
+            })
+
+        return {
+            "devices": devices
+        }
+
+    # ======================
+    # BATERIA CELULAR
+    # ======================
+
+    if (
+        "bateria celular" in command
+        or "nivel bateria" in command
+        or "nível bateria" in command
+        or "quanto de bateria" in command
+    ):
+
+        battery = get_entity(
+            "sensor.2303era42l_battery_level"
+        )
+
+        if battery:
+
+            return {
+                "message": f"Bateria do celular em {battery['state']}%"
+            }
+
+    # ======================
+    # CARREGANDO
+    # ======================
+
+    if (
+        "celular carregando" in command
+        or "esta carregando" in command
+        or "está carregando" in command
+    ):
+
+        state = get_entity(
+            "sensor.2303era42l_battery_state"
+        )
+
+        if state:
+
+            return {
+                "message": f"Status da bateria: {state['state']}"
+            }
+
+    # ======================
+    # TEMPERATURA CELULAR
+    # ======================
+
+    if (
+        "temperatura celular" in command
+        or "temperatura bateria" in command
+    ):
+
+        temp = get_entity(
+            "sensor.2303era42l_battery_temperature"
+        )
+
+        if temp:
+
+            return {
+                "message": f"Temperatura da bateria: {temp['state']}°C"
+            }
+
+    # ======================
+    # LOCALIZAÇÃO
+    # ======================
+
+    if (
+        "onde esta celular" in command
+        or "onde esta o celular" in command
+        or "onde está celular" in command
+        or "onde está o celular" in command
+        or "localizacao celular" in command
+        or "localização celular" in command
+    ):
+
+        location = get_entity(
+            "sensor.2303era42l_geocoded_location"
+        )
+
+        if location:
+
+            return {
+                "message": location["state"]
+            }
+
+    # ======================
+    # PORTÃO
+    # ======================
+
+    if (
+        "abrir portao" in command
+        or "abrir portão" in command
+    ):
+
+        return call_service(
+            "switch",
+            "turn_on",
+            "switch.portao_casa_switch_1"
+        )
+
+    # ======================
+    # LIGAR
+    # ======================
+
+    if (
+        "ligar" in command
+        and "desligar" not in command
+    ):
+
+        alias_entity = find_alias(command)
+
+        if alias_entity:
+
+            return call_service(
+                "switch",
+                "turn_on",
+                alias_entity
+            )
+
+        for entity in entities:
+
+            entity_id = entity.get("entity_id", "")
+
+            friendly_name = (
+                entity.get(
+                    "attributes",
+                    {}
+                ).get(
+                    "friendly_name",
+                    ""
+                )
+            )
+
+            if not friendly_name:
+                continue
+
+            if match_entity(command, friendly_name):
+
+                domain = entity_id.split(".")[0]
+
+                if domain in [
+                    "light",
+                    "switch",
+                    "fan",
+                    "climate",
+                    "media_player"
+                ]:
+
+                    return call_service(
+                        domain,
+                        "turn_on",
+                        entity_id
+                    )
+
+    # ======================
+    # DESLIGAR
+    # ======================
+
+    if "desligar" in command:
+
+        alias_entity = find_alias(command)
+
+        if alias_entity:
+
+            return call_service(
+                "switch",
+                "turn_off",
+                alias_entity
+            )
+
+        for entity in entities:
+
+            entity_id = entity.get("entity_id", "")
+
+            friendly_name = (
+                entity.get(
+                    "attributes",
+                    {}
+                ).get(
+                    "friendly_name",
+                    ""
+                )
+            )
+
+            if not friendly_name:
+                continue
+
+            if match_entity(command, friendly_name):
+
+                domain = entity_id.split(".")[0]
+
+                if domain in [
+                    "light",
+                    "switch",
+                    "fan",
+                    "climate",
+                    "media_player"
+                ]:
+
+                    return call_service(
+                        domain,
+                        "turn_off",
+                        entity_id
+                    )
+
+    # ======================
+    # STATUS
+    # ======================
+
+    if (
+        "status" in command
+        or "estado" in command
+        or "situacao" in command
+        or "situação" in command
+    ):
+
+        alias_entity = find_alias(command)
+
+        if alias_entity:
+
+            for entity in entities:
+
+                if entity.get("entity_id") == alias_entity:
+
+                    return {
+                        "entity": entity["entity_id"],
+                        "state": entity["state"],
+                        "attributes": entity["attributes"]
+                    }
+
+        for entity in entities:
+
+            friendly_name = (
+                entity.get(
+                    "attributes",
+                    {}
+                ).get(
+                    "friendly_name",
+                    ""
+                )
+            )
+
+            if not friendly_name:
+                continue
+
+            if match_entity(command, friendly_name):
+
+                return {
+                    "entity": entity["entity_id"],
+                    "state": entity["state"],
+                    "attributes": entity["attributes"]
+                }
+
+    # ======================
+    # CPU
+    # ======================
+
+    if "cpu" in command:
+
+        data = get_system_status()
+
+        return {
+            "message": f"CPU em {data['cpu_percent']}%"
+        }
+
+    # ======================
+    # MEMÓRIA
+    # ======================
+
+    if (
+        "memoria" in command
+        or "memória" in command
+        or "ram" in command
+    ):
+
+        data = get_system_status()
+
+        return {
+            "message": f"Memória em {data['memory_percent']}%"
+        }
+
+    # ======================
+    # HOME ASSISTANT
+    # ======================
+
+    if "home assistant" in command:
+
+        return get_homeassistant_status()
+
+    return {
+        "message": "Não encontrei um comando compatível."
+    }
+
+==============================================================
+ARQUIVO: command_parser.py
+==============================================================
+import re
+
+ACTION_ON = [
+    "ligar",
+    "acender",
+    "ativar",
+    "abrir",
+]
+
+ACTION_OFF = [
+    "desligar",
+    "apagar",
+    "fechar",
+]
+
+STATUS = [
+    "estado",
+    "status",
+    "como esta",
+    "como está",
+]
+
+INFO = [
+    "listar",
+    "mostrar",
+]
+
+
+class ParsedCommand:
+
+    def __init__(self):
+
+        self.intent = None
+        self.device = None
+        self.raw = ""
+
+
+def normalize(text):
+
+    return (
+        text.lower()
+        .replace("á","a")
+        .replace("à","a")
+        .replace("â","a")
+        .replace("ã","a")
+        .replace("é","e")
+        .replace("ê","e")
+        .replace("í","i")
+        .replace("ó","o")
+        .replace("ô","o")
+        .replace("õ","o")
+        .replace("ú","u")
+        .replace("ç","c")
+    )
+
+
+def parse(command):
+
+    result = ParsedCommand()
+
+    command = normalize(command)
+
+    result.raw = command
+
+    for word in ACTION_ON:
+
+        if command.startswith(word):
+
+            result.intent = "turn_on"
+
+            result.device = command.replace(word,"").strip()
+
+            return result
+
+    for word in ACTION_OFF:
+
+        if command.startswith(word):
+
+            result.intent = "turn_off"
+
+            result.device = command.replace(word,"").strip()
+
+            return result
+
+    for word in STATUS:
+
+        if word in command:
+
+            result.intent = "status"
+
+            result.device = command.replace(word,"").strip()
+
+            return result
+
+    if "dispositivos" in command:
+
+        result.intent = "devices"
+
+        return result
+
+    if "switches" in command:
+
+        result.intent = "switches"
+
+        return result
+
+    if "sensores" in command:
+
+        result.intent = "sensors"
+
+        return result
+
+    result.intent = "unknown"
+
+    return result
+
+==============================================================
+ARQUIVO: intent_engine.py
+==============================================================
+from services.device_registry import registry
+
+
+class IntentEngine:
+
+    def parse(self, command: str):
+
+        cmd = command.lower()
+
+        if "ligar" in cmd:
+            return self._device_intent(cmd, "turn_on")
+
+        if "desligar" in cmd:
+            return self._device_intent(cmd, "turn_off")
+
+        if "status" in cmd:
+            return self._device_status(cmd)
+
+        return None
+
+    def _device_intent(self, cmd, action):
+
+        devices = registry.search(cmd)
+
+        if not devices:
+            return None
+
+        return {
+            "type": "device_action",
+            "action": action,
+            "entity_id": devices[0]["entity_id"]
+        }
+
+    def _device_status(self, cmd):
+
+        devices = registry.search(cmd)
+
+        if not devices:
+            return None
+
+        return {
+            "type": "device_status",
+            "entity_id": devices[0]["entity_id"]
+        }
+
+
+intent_engine = IntentEngine()
+
+==============================================================
+ARQUIVO: automation_engine.py
+==============================================================
+from services.homeassistant_service import (
+    call_service,
+    get_states,
+)
+
+
+class AutomationEngine:
+
+    def execute(self, intent):
+
+        if intent is None:
+            return {
+                "success": False,
+                "message": "Não consegui entender o comando."
+            }
+
+        t = intent.get("type")
+
+        if t == "device_action":
+            return self._device_action(intent)
+
+        if t == "device_status":
+            return self._device_status(intent)
+
+        return {
+            "success": False,
+            "message": "Intent desconhecida."
+        }
+
+    def _device_action(self, intent):
+
+        entity_id = intent["entity_id"]
+
+        domain = entity_id.split(".")[0]
+
+        action = intent["action"]
+
+        return call_service(
+            domain,
+            action,
+            entity_id
+        )
+
+    def _device_status(self, intent):
+
+        entity_id = intent["entity_id"]
+
+        states = get_states()
+
+        for entity in states:
+
+            if entity["entity_id"] == entity_id:
+
+                return {
+                    "success": True,
+                    "entity_id": entity_id,
+                    "state": entity["state"],
+                    "attributes": entity.get("attributes", {})
+                }
+
+        return {
+            "success": False,
+            "message": "Dispositivo não encontrado."
+        }
+
+
+automation_engine = AutomationEngine()
+
+
+
+==============================================================
+ARQUIVO: device_registry.py
+==============================================================
+from services.homeassistant_service import get_states
+
+
+class DeviceRegistry:
+
+    def __init__(self):
+
+        self.entities = get_states()
+
+    def all(self):
+
+        return self.entities
+
+    def by_entity_id(self, entity_id):
+
+        for entity in self.entities:
+
+            if entity["entity_id"] == entity_id:
+
+                return entity
+
+        return None
+
+    def by_domain(self, domain):
+
+        result = []
+
+        prefix = f"{domain}."
+
+        for entity in self.entities:
+
+            if entity["entity_id"].startswith(prefix):
+
+                result.append(entity)
+
+        return result
+
+    def search(self, text):
+
+        text = self.normalize(text)
+
+        result = []
+
+        for entity in self.entities:
+
+            entity_id = self.normalize(
+                entity.get("entity_id", "")
+            )
+
+            friendly = self.normalize(
+
+                entity.get(
+                    "attributes",
+                    {}
+                ).get(
+                    "friendly_name",
+                    ""
+                )
+
+            )
+
+            if text in entity_id or text in friendly:
+
+                result.append(entity)
+
+        return result
+
+    @staticmethod
+    def normalize(text):
+
+        return (
+            str(text)
+            .lower()
+            .replace("á", "a")
+            .replace("à", "a")
+            .replace("â", "a")
+            .replace("ã", "a")
+            .replace("é", "e")
+            .replace("ê", "e")
+            .replace("í", "i")
+            .replace("ó", "o")
+            .replace("ô", "o")
+            .replace("õ", "o")
+            .replace("ú", "u")
+            .replace("ç", "c")
+        )
+
+
+registry = DeviceRegistry()
+
+==============================================================
+ARQUIVO: response_builder.py
+==============================================================
+class ResponseBuilder:
+
+    def build(self, result):
+
+        if result is None:
+
+            return {
+                "success": False,
+                "message": "Sem resposta."
+            }
+
+        if not result.get("success", False):
+
+            return result
+
+        if "state" in result:
+
+            return {
+                "success": True,
+                "message": f"{result['entity_id']} está {result['state']}"
+            }
+
+        if "result" in result:
+
+            return {
+                "success": True,
+                "message": "Comando executado com sucesso.",
+                "details": result["result"]
+            }
+
+        return result
+
+
+response_builder = ResponseBuilder()

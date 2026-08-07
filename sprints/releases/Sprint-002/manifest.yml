@@ -1,0 +1,16 @@
+name: Sprint-002
+version: 1.0.0
+release: Release-1.0
+description: Builder do CBOS
+
+author: Bruno Cordeiro
+
+status: development
+
+components:
+
+  - Builder
+  - Patch Manager
+  - Validator
+  - Backup Manager
+  - Rollback Manager

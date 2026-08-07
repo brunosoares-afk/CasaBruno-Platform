@@ -1,0 +1,21 @@
+builder:
+
+  version: 2.0.0
+
+  ai: FRED
+
+  package_extension: cbos
+
+  workspace: /opt/CasaBruno-Platform/builder/workspace
+
+  output: /opt/CasaBruno-Platform/builder/output
+
+  cache: /opt/CasaBruno-Platform/builder/cache
+
+  history: /opt/CasaBruno-Platform/builder/history
+
+  backup: /opt/CasaBruno-Platform/builder/backup
+
+  releases: /opt/CasaBruno-Platform/releases
+
+  plugins: /opt/CasaBruno-Platform/plugins

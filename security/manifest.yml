@@ -1,0 +1,20 @@
+security:
+
+  version: 1.0.0
+
+  manager: FRED
+
+components:
+
+  - auth
+  - rbac
+  - secrets
+  - certificates
+  - keys
+  - policies
+  - audit
+  - firewall
+  - encryption
+  - vault
+  - tokens
+  - sessions

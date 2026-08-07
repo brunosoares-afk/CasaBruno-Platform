@@ -1,0 +1,23 @@
+name: CBOS Builder
+
+version: 1.0.0
+
+status: development
+
+engine:
+
+  package: enabled
+
+  validator: enabled
+
+  rollback: enabled
+
+  migration: enabled
+
+  release: enabled
+
+  sprint: enabled
+
+output:
+
+  extension: cbos

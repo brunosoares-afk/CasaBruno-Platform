@@ -1,0 +1,20 @@
+packages:
+
+  version: 1.0.0
+
+  manager: FRED
+
+components:
+
+  - core
+  - system
+  - modules
+  - plugins
+  - sdk
+  - releases
+  - builds
+  - cache
+  - runtime
+  - templates
+  - manifests
+  - repository

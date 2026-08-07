@@ -1,18 +1,65 @@
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
 
-.env
-
+# Virtualenv
 venv/
+.venv/
+env/
 
-.vscode/
+# Node
+node_modules/
+dist/
+build/
 
-.idea/
-
+# Logs
 logs/
-
 *.log
 
-data/
-
+# Banco
 *.db
+*.sqlite3
+
+# Docker
+*.pid
+
+# IDE
+.vscode/
+.idea/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Segredos / credenciais
+.env
+backend/app/config.json
+cbos_codigo_completo.txt
+
+# Backups
+backups/*.tar.gz
+backups/*.zip
+
+# Arquivos temporários
+*.tmp
+*.tmp.*
+*.bak
+*.swp
+
+# Claude Code (local, arquivos de escrita atômica)
+.claude/*.tmp.*
+
+# IA
+ai/models/*
+!ai/models/.gitkeep
+
+ai/memory/*
+!ai/memory/.gitkeep
+
+# Dados
+backend/data/*
+!backend/data/.gitkeep

@@ -1,0 +1,89 @@
+from services.homeassistant_service import get_states
+
+
+class DeviceRegistry:
+
+    def __init__(self):
+
+        self.entities = get_states()
+
+    def all(self):
+
+        return self.entities
+
+    def by_entity_id(self, entity_id):
+
+        for entity in self.entities:
+
+            if entity["entity_id"] == entity_id:
+
+                return entity
+
+        return None
+
+    def by_domain(self, domain):
+
+        result = []
+
+        prefix = f"{domain}."
+
+        for entity in self.entities:
+
+            if entity["entity_id"].startswith(prefix):
+
+                result.append(entity)
+
+        return result
+
+    def search(self, text):
+
+        text = self.normalize(text)
+
+        result = []
+
+        for entity in self.entities:
+
+            entity_id = self.normalize(
+                entity.get("entity_id", "")
+            )
+
+            friendly = self.normalize(
+
+                entity.get(
+                    "attributes",
+                    {}
+                ).get(
+                    "friendly_name",
+                    ""
+                )
+
+            )
+
+            if text in entity_id or text in friendly:
+
+                result.append(entity)
+
+        return result
+
+    @staticmethod
+    def normalize(text):
+
+        return (
+            str(text)
+            .lower()
+            .replace("á", "a")
+            .replace("à", "a")
+            .replace("â", "a")
+            .replace("ã", "a")
+            .replace("é", "e")
+            .replace("ê", "e")
+            .replace("í", "i")
+            .replace("ó", "o")
+            .replace("ô", "o")
+            .replace("õ", "o")
+            .replace("ú", "u")
+            .replace("ç", "c")
+        )
+
+
+registry = DeviceRegistry()

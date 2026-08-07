@@ -1,0 +1,22 @@
+modules:
+
+  enabled: true
+
+  manager: FRED
+
+  path: /opt/CasaBruno-Platform/modules
+
+core:
+
+  - system
+  - network
+  - fred
+  - homeassistant
+  - dashboard
+  - automation
+  - docker
+  - ai
+  - security
+  - monitoring
+  - storage
+  - integrations

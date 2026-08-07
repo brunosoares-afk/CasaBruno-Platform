@@ -1,0 +1,24 @@
+sdk:
+
+  name: CBOS SDK
+
+  version: 1.0.0
+
+  ai: FRED
+
+languages:
+
+  - python
+  - javascript
+  - typescript
+  - bash
+  - go
+  - java
+  - csharp
+  - php
+
+directories:
+
+  - examples
+  - templates
+  - docs

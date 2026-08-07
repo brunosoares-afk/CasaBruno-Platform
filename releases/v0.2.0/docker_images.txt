@@ -1,0 +1,14 @@
+IMAGE                                                      ID             DISK USAGE   CONTENT SIZE   EXTRA
+alexxit/go2rtc:latest                                      bd266294e9a7        258MB             0B   U    
+casabruno-platform-cbos-api:latest                         5fa82c5c72f7        155MB             0B   U    
+cbos-cbos:latest                                           a5d761858717        168MB             0B        
+ghcr.io/home-assistant/amd64-hassio-audio:2026.02.0        d019c5b9f0c0       75.4MB             0B   U    
+ghcr.io/home-assistant/amd64-hassio-cli:2026.06.0          866e37092ff6       55.8MB             0B   U    
+ghcr.io/home-assistant/amd64-hassio-dns:2026.02.0          05d9cf7b721f         71MB             0B   U    
+ghcr.io/home-assistant/amd64-hassio-multicast:2026.02.0    c9843ce670d6       45.6MB             0B   U    
+ghcr.io/home-assistant/amd64-hassio-observer:2026.02.0     5e561acc2622       9.67MB             0B   U    
+ghcr.io/home-assistant/amd64-hassio-supervisor:2026.06.2   f6ac69392f26        356MB             0B   U    
+ghcr.io/home-assistant/amd64-hassio-supervisor:latest      f6ac69392f26        356MB             0B   U    
+ghcr.io/home-assistant/home-assistant:stable               5cd43d21bc9e       2.33GB             0B        
+ghcr.io/home-assistant/qemux86-64-homeassistant:2026.6.4   f6617d944631       2.33GB             0B   U    
+jc21/nginx-proxy-manager:latest                            f44e23f5e4d7        1.2GB             0B   U    

@@ -1,0 +1,19 @@
+[project]
+name = "cbos"
+version = "1.0.0"
+description = "CasaBruno Operating System CLI"
+readme = "README.md"
+requires-python = ">=3.11"
+
+dependencies = [
+    "typer>=0.12",
+    "rich>=13",
+    "docker",
+    "gitpython",
+    "requests",
+    "psutil",
+    "pyyaml",
+]
+
+[project.scripts]
+cbos = "tools.cbos_cli.main:app"
