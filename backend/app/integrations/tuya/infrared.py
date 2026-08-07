@@ -146,21 +146,45 @@ def projector_volume_down():
 
 
 # ==========================
-# AR-CONDICIONADO
-# Ainda sem nenhum codigo aprendido no Tuya (lista vazia na nuvem).
+# AR-CONDICIONADO (remote "Ar quarto", categoria "standard AC" na Tuya,
+# marca TCL, category_id 5). Teclas aprendidas na nuvem: PowerOn, PowerOff,
+# M (mode), F (fan), T (temperature) - confirmado via GET .../keys.
+#
+# GET /ac/status  -> funciona, devolve o ultimo estado conhecido
+#                     (power/mode/temp/wind).
+# POST/PUT /ac/status -> NAO funciona (API responde "uri path invalid"),
+#                     apesar de alguns scripts antigos assumirem que sim.
+#
+# O envio real de comando e via /command com {"key": ...}, igual TV/projetor:
+#   - PowerOn / PowerOff: confirmado funcionando (testado ao vivo).
+#   - M / F / T (mode/fan/temp): a Tuya aceita a chave mas rejeita todo
+#     payload de valor testado ("value", "key_id" etc) com
+#     code 30706 "Command or value not supported". O formato certo do
+#     valor pra essas 3 nao esta documentado aqui - precisa checar a
+#     documentacao da Tuya IoT Platform pra essa categoria (ac/standard
+#     remote) ou testar direto no simulador do painel Tuya.
 # ==========================
 
+def _ac_command_url():
+    return f"/v1.0/infrareds/{HUB_ID}/remotes/{AC_REMOTE}/command"
+
+
+def air_status():
+    r = api.get(f"/v2.0/infrareds/{HUB_ID}/remotes/{AC_REMOTE}/ac/status")
+    return r.get("result", r) if isinstance(r, dict) else r
+
+
 def air_on():
-    return {"error": "Codigos do ar-condicionado ainda nao foram ensinados na Tuya"}
+    return api.post(_ac_command_url(), {"key": "PowerOn"})
 
 def air_off():
-    return {"error": "Codigos do ar-condicionado ainda nao foram ensinados na Tuya"}
+    return api.post(_ac_command_url(), {"key": "PowerOff"})
 
 def air_temp(temp):
-    return {"error": "Codigos do ar-condicionado ainda nao foram ensinados na Tuya"}
+    return api.post(_ac_command_url(), {"key": "T", "value": temp})
 
 def air_mode(mode):
-    return {"error": "Codigos do ar-condicionado ainda nao foram ensinados na Tuya"}
+    return api.post(_ac_command_url(), {"key": "M", "value": mode})
 
 def air_fan(speed):
-    return {"error": "Codigos do ar-condicionado ainda nao foram ensinados na Tuya"}
+    return api.post(_ac_command_url(), {"key": "F", "value": speed})

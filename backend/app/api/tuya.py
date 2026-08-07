@@ -1,7 +1,6 @@
 from fastapi import APIRouter
 
 from app.integrations.tuya import tv
-from app.integrations.tuya import air
 from app.integrations.tuya import discover
 from app.integrations.tuya import infrared
 
@@ -38,25 +37,32 @@ def tv_channel_up():
 def tv_channel_down():
     return tv.channel(-1)
 
+# "air" nao e um device Tuya nativo (e um remote de IR) - as rotas abaixo
+# usam a mesma implementacao de /ir/air/*, via infrared.air_* (.../ac/status).
+
 @router.post("/air/on")
 def air_on():
-    return air.power(True)
+    return infrared.air_on()
 
 @router.post("/air/off")
 def air_off():
-    return air.power(False)
+    return infrared.air_off()
 
 @router.post("/air/temp/{temp}")
 def air_temp(temp: int):
-    return air.temperature(temp)
+    return infrared.air_temp(temp)
 
 @router.post("/air/mode/{mode}")
 def air_mode(mode: str):
-    return air.mode(mode)
+    return infrared.air_mode(mode)
 
 @router.post("/air/fan/{speed}")
 def air_fan(speed: str):
-    return air.fan(speed)
+    return infrared.air_fan(speed)
+
+@router.get("/air/status")
+def air_status():
+    return infrared.air_status()
 
 # ==========================
 # SMART IR - TV
