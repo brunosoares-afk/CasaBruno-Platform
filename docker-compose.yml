@@ -18,5 +18,5 @@ services:
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./backend/app:/app
+      - ./backend/app:/app/app
       - ./frontend:/frontend
