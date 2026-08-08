@@ -1,11 +1,13 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.api.security import require_api_key
 from app.core.database.api import api
 
 
 router = APIRouter(
     prefix="/api/database",
-    tags=["Database"]
+    tags=["Database"],
+    dependencies=[Depends(require_api_key)]
 )
 
 
@@ -20,16 +22,16 @@ def tables():
 
 
 @router.post("/execute")
-def execute(sql: str, params: list = []):
-    return api.execute(sql, tuple(params))
+def execute(sql: str, params: list | None = None):
+    return api.execute(sql, tuple(params or []))
 
 
 @router.post("/query")
-def query(sql: str, params: list = []):
-    return api.query(sql, tuple(params))
+def query(sql: str, params: list | None = None):
+    return api.query(sql, tuple(params or []))
 
 
 @router.post("/value")
-def value(sql: str, params: list = []):
-    return api.value(sql, tuple(params))
+def value(sql: str, params: list | None = None):
+    return api.value(sql, tuple(params or []))
 
