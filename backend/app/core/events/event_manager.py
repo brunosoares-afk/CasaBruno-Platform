@@ -26,6 +26,9 @@ class EventManager:
             for event, callbacks in dispatcher.listeners.items()
         }
 
+    def events(self):
+        return dispatcher.events()
+
     def clear(self):
         event_bus.clear()
 

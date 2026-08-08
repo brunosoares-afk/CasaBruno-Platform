@@ -43,6 +43,9 @@ class EventBus:
             for event, callbacks in self.subscribers.items()
         }
 
+    def events(self):
+        return list(self.subscribers.keys())
+
     def stats(self):
 
         stats = {}

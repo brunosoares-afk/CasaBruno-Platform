@@ -21,10 +21,10 @@ scheduler.register("docker", 60, job2)
 print(scheduler.list())
 print()
 
-print(scheduler.execute("system"))
+print(scheduler.run("system"))
 print()
 
-print(scheduler.execute_all())
+print([scheduler.run(name) for name in scheduler.list()])
 print()
 
 print(scheduler.list())
@@ -33,7 +33,7 @@ scheduler.disable("docker")
 
 print()
 
-print(scheduler.execute_all())
+print([scheduler.run(name) for name in scheduler.list()])
 print()
 
 print(scheduler.list())

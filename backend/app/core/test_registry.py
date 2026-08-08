@@ -1,4 +1,4 @@
-from registry import registry
+from app.core.registry import registry
 
 registry.register("teste", object())
 

@@ -1,4 +1,7 @@
+import time
 from datetime import datetime
+
+from app.core.events.event_manager import event_manager
 
 
 class Scheduler:
@@ -6,13 +9,15 @@ class Scheduler:
     def __init__(self):
         self.jobs = {}
 
-    def register(self, name, interval, callback, enabled=True):
+    def register(self, name, interval, callback, enabled=True, event=None):
         self.jobs[name] = {
             "name": name,
             "interval": interval,
             "callback": callback,
             "enabled": enabled,
+            "event": event,
             "last_run": None,
+            "last_tick": None,
             "runs": 0
         }
 
@@ -53,11 +58,42 @@ class Scheduler:
         if not job["enabled"]:
             return False
 
-        job["callback"]()
+        result = job["callback"]()
         job["runs"] += 1
         job["last_run"] = datetime.now().isoformat()
 
+        if job["event"]:
+            event_manager.emit(job["event"], result)
+
         return True
+
+    def tick(self):
+        now = time.time()
+        executed = []
+
+        for name, job in self.jobs.items():
+
+            if not job["enabled"]:
+                continue
+
+            due = (
+                job["last_tick"] is None
+                or (now - job["last_tick"]) >= job["interval"]
+            )
+
+            if not due:
+                continue
+
+            job["last_tick"] = now
+            self.run(name)
+            executed.append(name)
+
+        return executed
+
+    def loop(self, delay=1):
+        while True:
+            self.tick()
+            time.sleep(delay)
 
     def list(self):
         return list(self.jobs.keys())
