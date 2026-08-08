@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from app.core.scheduler.scheduler_manager import scheduler_manager
+from app.core.scheduler.manager import scheduler_manager
 from app.core.events.event_manager import event_manager
 
 
@@ -31,14 +31,14 @@ scheduler_manager.register(
     "system",
     2,
     system_job,
-    "job.system"
+    event="job.system"
 )
 
 scheduler_manager.register(
     "docker",
     3,
     docker_job,
-    "job.docker"
+    event="job.docker"
 )
 
 for i in range(7):
@@ -46,7 +46,7 @@ for i in range(7):
     print("=" * 60)
     print("TICK", i)
 
-    scheduler_manager.run()
+    scheduler_manager.tick()
 
     time.sleep(1)
 

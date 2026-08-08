@@ -3,8 +3,8 @@ from app.core.scheduler.scheduler import scheduler
 
 class SchedulerManager:
 
-    def register(self, name, interval, callback, enabled=True):
-        return scheduler.register(name, interval, callback, enabled)
+    def register(self, name, interval, callback, enabled=True, event=None):
+        return scheduler.register(name, interval, callback, enabled, event)
 
     def unregister(self, name):
         return scheduler.unregister(name)
@@ -20,6 +20,9 @@ class SchedulerManager:
 
     def tick(self):
         return scheduler.tick()
+
+    def loop(self, delay=1):
+        return scheduler.loop(delay)
 
     def list(self):
         return scheduler.list()
