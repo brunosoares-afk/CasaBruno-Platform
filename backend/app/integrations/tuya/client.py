@@ -1,4 +1,8 @@
+import logging
+
 from tuya_connector import TuyaOpenAPI
+
+logger = logging.getLogger(__name__)
 
 API_ENDPOINT="https://openapi.tuyaus.com"
 
@@ -11,7 +15,10 @@ api=TuyaOpenAPI(
     ACCESS_KEY
 )
 
-api.connect()
+try:
+    api.connect()
+except Exception:
+    logger.exception("Falha ao conectar na Tuya OpenAPI - integração Tuya ficará indisponível")
 
 def status(device):
     return api.get(f"/v1.0/devices/{device}")

@@ -30,16 +30,32 @@ def ping(host, timeout=1):
         return False, None
 
 
+def arp_online(host, timeout=1):
+    try:
+        result = subprocess.run(
+            ["ip", "neigh", "show", host],
+            capture_output=True,
+            text=True,
+            timeout=timeout + 1
+        )
+        return any(state in result.stdout for state in ("REACHABLE", "STALE", "DELAY"))
+    except Exception:
+        return False
+
+
 @router.get("/devices")
 def devices():
     cfg = config.get("network_devices", {}) or {}
     items = cfg.get("items", [])
     response = []
     for item in items:
-        online, latency = ping(item.get("host"))
+        host = item.get("host")
+        online, latency = ping(host)
+        if not online:
+            online = arp_online(host)
         response.append({
             "name": item.get("name"),
-            "host": item.get("host"),
+            "host": host,
             "online": online,
             "latency_ms": latency
         })
