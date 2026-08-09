@@ -10,11 +10,15 @@ class AndroidManager:
             self.devices[device_id] = AndroidDevice(
                 device_id,
                 cfg["name"],
-                cfg["host"]
+                cfg["host"],
+                cfg.get("mac")
             )
 
     def host(self, device_id):
         return self.devices[device_id].host
+
+    def mac(self, device_id):
+        return self.devices[device_id].mac
 
     def adb(self, *args, timeout=3):
         try:
@@ -34,11 +38,15 @@ class AndroidManager:
     def list(self):
         self.connect_all()
         out = self.adb("devices", timeout=2)
+        lines = out.splitlines()
         response = []
         for device in self.devices.values():
             status = "offline"
-            if device.host in out and "device" in out:
-                status = "online"
+            for line in lines:
+                parts = line.split()
+                if len(parts) >= 2 and parts[0] == device.host and parts[1] == "device":
+                    status = "online"
+                    break
             response.append({
                 **device.json(),
                 "status": status
