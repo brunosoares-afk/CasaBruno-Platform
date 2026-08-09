@@ -100,7 +100,8 @@ class IntentEngine:
             return self.device_status(cmd)
 
         return {
-            "type": "unknown"
+            "type": "unknown",
+            "text": command
         }
 
     # ======================================================

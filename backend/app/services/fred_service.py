@@ -54,6 +54,13 @@ class FredCore:
                 intent.get("type")
             )
 
+            # O parser normaliza/remove palavras pra casar comandos de
+            # dispositivo por palavra-chave, o que distorce frases naturais
+            # (ex: "meu nome é" vira "u no e"). Pra conversa livre com o
+            # LLM, usa o texto original em vez do texto tratado.
+            if intent.get("type") == "unknown":
+                intent["text"] = command
+
             # -----------------------------
             # Router
             # -----------------------------
