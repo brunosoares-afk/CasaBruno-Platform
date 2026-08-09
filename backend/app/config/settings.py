@@ -46,30 +46,9 @@ class Settings:
         )
     )
 
-    # =====================================================
-    # HOME ASSISTANT
-    # =====================================================
-
-    HOMEASSISTANT_URL = os.getenv(
-        "HOMEASSISTANT_URL",
-        os.getenv(
-            "HA_URL",
-            "http://192.168.2.80:8123"
-        )
-    )
-
-    HOMEASSISTANT_TOKEN = os.getenv(
-        "HOMEASSISTANT_TOKEN",
-        os.getenv(
-            "HA_TOKEN",
-            ""
-        )
-    )
-
-    # Compatibilidade
-
-    HA_URL = HOMEASSISTANT_URL
-    HA_TOKEN = HOMEASSISTANT_TOKEN
+    # Home Assistant: host/porta/token vêm de app/config.json (ver
+    # app/core/config/config.py e app/core/homeassistant/client.py),
+    # não daqui. Não reintroduzir HA_URL/HA_TOKEN aqui.
 
     # =====================================================
     # OLLAMA
@@ -77,7 +56,12 @@ class Settings:
 
     OLLAMA_URL = os.getenv(
         "OLLAMA_URL",
-        "http://192.168.2.80:11434"
+        "http://127.0.0.1:11434"
+    )
+
+    OLLAMA_MODEL = os.getenv(
+        "OLLAMA_MODEL",
+        "llama3.2:1b"
     )
 
     # =====================================================

@@ -6,7 +6,7 @@ from app.services.fred_memory import memory
 
 class FredCore:
 
-    def process(self, command: str):
+    def process(self, command: str, llm_timeout=None):
 
         try:
 
@@ -60,6 +60,8 @@ class FredCore:
             # LLM, usa o texto original em vez do texto tratado.
             if intent.get("type") == "unknown":
                 intent["text"] = command
+                if llm_timeout is not None:
+                    intent["llm_timeout"] = llm_timeout
 
             # -----------------------------
             # Router
@@ -81,9 +83,9 @@ class FredCore:
 
         return self.process(command)
 
-    def ask(self, command):
+    def ask(self, command, llm_timeout=None):
 
-        return self.process(command)
+        return self.process(command, llm_timeout=llm_timeout)
 
 
 fred = FredCore()

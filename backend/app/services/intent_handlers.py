@@ -2,9 +2,11 @@ from app.services.automation_engine import automation_engine
 from app.services.homeassistant_service import (
     get_homeassistant_status,
     get_states,
+    get_recognized_person,
 )
 
 from app.services.device_registry import registry
+from app.services.llm_service import llm_service
 
 
 
@@ -175,6 +177,36 @@ class IntentHandlers:
 
             "devices":
             devices
+
+        }
+
+
+
+    # ======================================================
+    # FALLBACK CONVERSA (LLM)
+    # ======================================================
+
+    def llm_fallback(self, intent):
+
+        text = intent.get(
+            "text"
+        )
+
+        person = get_recognized_person()
+
+        message = llm_service.ask(
+            text,
+            person=person,
+            timeout=intent.get("llm_timeout", 60)
+        )
+
+        return {
+
+            "success":
+            True,
+
+            "message":
+            message
 
         }
 

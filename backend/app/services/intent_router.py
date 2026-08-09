@@ -59,6 +59,11 @@ class IntentRouter:
             handlers.sensor_query
         )
 
+        self.register(
+            "unknown",
+            handlers.llm_fallback
+        )
+
     # ======================================================
     # ROUTER
     # ======================================================

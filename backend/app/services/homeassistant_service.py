@@ -13,6 +13,17 @@ def get_states():
     return ha_client.states()
 
 
+def get_recognized_person():
+    try:
+        data = ha_client.get("/states/sensor.icsee_pessoa_reconhecida")
+        state = data.get("state")
+        if state in (None, "Ninguém", "Desconhecido", "unavailable", "unknown"):
+            return "desconhecido"
+        return state
+    except Exception:
+        return "desconhecido"
+
+
 def get_config():
     return ha_client.get("/config")
 

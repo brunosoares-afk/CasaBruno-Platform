@@ -1,4 +1,5 @@
 import asyncio
+import functools
 import json
 import logging
 
@@ -23,6 +24,12 @@ ALEXA_NOTIFY_ENTITY = "notify.alexa_taiane_speak"
 # criptográfica (verify_alexa_request), essa checagem de applicationId
 # garante que é especificamente a NOSSA skill, não outra.
 ALEXA_SKILL_ID = "amzn1.ask.skill.c305dea3-8c08-4164-9425-ea85717913cc"
+
+# Só usado no fluxo assíncrono (_answer_async): ninguém fica esperando
+# essa resposta na hora, então dá pra tolerar um cold start do Ollama
+# (modelo descarregado da memória por inatividade) sem cair no fallback
+# de erro à toa.
+ASYNC_LLM_TIMEOUT = 120
 
 
 def _request_application_id(body: dict) -> str | None:
@@ -71,7 +78,9 @@ def _speech_response(text, end_session=True):
 async def _answer_async(consulta: str):
     try:
         loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, fred.ask, consulta)
+        result = await loop.run_in_executor(
+            None, functools.partial(fred.ask, consulta, llm_timeout=ASYNC_LLM_TIMEOUT)
+        )
         message = result.get("message", "Não consegui pensar em uma resposta.")
 
         ha_client.call_service(
