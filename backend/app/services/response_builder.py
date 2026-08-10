@@ -1,3 +1,16 @@
+import json
+import random
+from pathlib import Path
+
+EXPRESSIONS_PATH = Path(__file__).resolve().parents[1] / "data" / "fred_expressions.json"
+
+try:
+    with open(EXPRESSIONS_PATH, encoding="utf-8") as f:
+        EXPRESSIONS = json.load(f)
+except Exception:
+    EXPRESSIONS = {}
+
+
 class ResponseBuilder:
 
 
@@ -103,7 +116,7 @@ class ResponseBuilder:
                 True,
 
                 "message":
-                text,
+                self.with_personality(text),
 
                 "data":
                 result
@@ -296,6 +309,20 @@ class ResponseBuilder:
 
 
         return entity_id
+
+    # ======================================================
+    # PERSONALIDADE
+    # ======================================================
+
+    def with_personality(self, text):
+
+        options = EXPRESSIONS.get("concordancia")
+
+        if not options:
+
+            return text
+
+        return f"{random.choice(options)} {text}"
 
     # ======================================================
     # HOUSE AI
