@@ -13,7 +13,6 @@ router = APIRouter(
 )
 
 TOKEN_TTL_SECONDS = 24 * 60 * 60
-DEFAULT_PASSWORD = "099786"
 
 # Token de sessão em memória — suficiente para um app de usuário único; cai
 # ao reiniciar o backend, forçando novo login (aceitável nesse contexto).
@@ -28,7 +27,7 @@ def _get_or_seed_auth():
     auth = config.get("gerencia_auth")
     if not auth or "salt" not in auth or "password_hash" not in auth:
         salt = secrets.token_hex(16)
-        auth = {"salt": salt, "password_hash": _hash_password(DEFAULT_PASSWORD, salt)}
+        auth = {"salt": salt, "password_hash": _hash_password(settings.GERENCIA_DEFAULT_PASSWORD, salt)}
         config.set("gerencia_auth", auth)
     return auth
 

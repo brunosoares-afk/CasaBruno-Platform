@@ -92,7 +92,19 @@ class Settings:
     # JID de telefone real do Bruno, não mais um self-chat.
     FRED_NOTIFY_JID = os.getenv(
         "FRED_NOTIFY_JID",
-        "5527996354512@s.whatsapp.net"
+        ""
+    )
+
+    # =====================================================
+    # GERÊNCIA (login do painel administrativo)
+    # =====================================================
+
+    # Senha usada só na primeira vez (seed do hash em config.json, ver
+    # app/api/auth.py::_get_or_seed_auth) — depois disso o login real
+    # nunca mais lê este valor.
+    GERENCIA_DEFAULT_PASSWORD = os.getenv(
+        "GERENCIA_DEFAULT_PASSWORD",
+        ""
     )
 
     # =====================================================
