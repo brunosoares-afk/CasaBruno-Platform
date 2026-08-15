@@ -1,10 +1,12 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.api.auth import require_gerencia_session
 from app.core.config.api import api
 
 router = APIRouter(
     prefix="/api/config",
-    tags=["Config"]
+    tags=["Config"],
+    dependencies=[Depends(require_gerencia_session)]
 )
 
 

@@ -1,3 +1,6 @@
+import re
+
+
 class CommandParser:
 
 
@@ -30,32 +33,29 @@ class CommandParser:
     # LIMPEZA
     # ======================================================
 
+    # Troca de palavra por índice/posição (\b) em vez de substring solta —
+    # um replace ingênuo de "me" quebrava qualquer palavra que contivesse
+    # essas letras no meio (ex: "home".replace("me","") virava "ho", e
+    # "status home assistant" — o próprio gatilho de status do sistema —
+    # nunca mais batia com nada).
+    FILLER_WORDS = [
+        "por favor",
+        "poderia",
+        "pode",
+        "favor",
+        "quero",
+        "eu quero",
+        "me",
+    ]
+
     def clean(self, text):
 
-        replacements = {
+        for word in self.FILLER_WORDS:
 
-            "por favor": "",
-
-            "poderia": "",
-
-            "pode": "",
-
-            "favor": "",
-
-            "quero": "",
-
-            "eu quero": "",
-
-            "me": "",
-
-        }
-
-
-        for old, new in replacements.items():
-
-            text = text.replace(
-                old,
-                new
+            text = re.sub(
+                r"\b" + re.escape(word) + r"\b",
+                "",
+                text
             )
 
 

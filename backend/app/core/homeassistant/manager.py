@@ -3,6 +3,7 @@ from app.core.homeassistant.devices import devices
 from app.core.homeassistant.services import services
 from app.core.homeassistant.weather import weather
 from app.core.homeassistant.client import ha_client
+from app.core.homeassistant.registry import registry
 
 
 class HomeAssistantManager:
@@ -13,6 +14,7 @@ class HomeAssistantManager:
         self.devices = devices
         self.services = services
         self.weather = weather
+        self.registry = registry
 
     def status(self):
         try:

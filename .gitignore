@@ -40,6 +40,14 @@ Thumbs.db
 .env
 backend/app/config.json
 cbos_codigo_completo.txt
+whatsapp-bridge/auth_state*/
+whatsapp-bridge/last-qr.png
+
+# Modelos STT (binário grande, baixado, não gerado pelo build)
+backend/stt_models/
+
+# Estado de runtime do Fred (memória de comandos, não é código)
+backend/app/data/*.json
 
 # Backups
 backups/*.tar.gz

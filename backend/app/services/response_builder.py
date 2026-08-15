@@ -1,14 +1,4 @@
-import json
-import random
-from pathlib import Path
-
-EXPRESSIONS_PATH = Path(__file__).resolve().parents[1] / "data" / "fred_expressions.json"
-
-try:
-    with open(EXPRESSIONS_PATH, encoding="utf-8") as f:
-        EXPRESSIONS = json.load(f)
-except Exception:
-    EXPRESSIONS = {}
+from app.services.expressions import pick
 
 
 class ResponseBuilder:
@@ -99,7 +89,13 @@ class ResponseBuilder:
                 f"{entity} ligado.",
 
                 "turn_off":
-                f"{entity} desligado."
+                f"{entity} desligado.",
+
+                "volume_up":
+                f"Aumentei o volume do {entity}.",
+
+                "volume_down":
+                f"Abaixei o volume do {entity}."
 
             }.get(
 
@@ -140,6 +136,17 @@ class ResponseBuilder:
 
             )
 
+            unit = result.get(
+                "attributes",
+                {}
+            ).get(
+                "unit_of_measurement",
+                ""
+            )
+
+            state_text = (
+                f"{result['state']} {unit}".strip()
+            )
 
             return {
 
@@ -147,7 +154,7 @@ class ResponseBuilder:
                 True,
 
                 "message":
-                f"{entity} está {result['state']}.",
+                f"{entity} está {state_text}.",
 
                 "data":
                 result
@@ -316,13 +323,13 @@ class ResponseBuilder:
 
     def with_personality(self, text):
 
-        options = EXPRESSIONS.get("concordancia")
+        prefix = pick("concordancia")
 
-        if not options:
+        if not prefix:
 
             return text
 
-        return f"{random.choice(options)} {text}"
+        return f"{prefix} {text}"
 
     # ======================================================
     # HOUSE AI

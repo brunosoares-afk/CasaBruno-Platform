@@ -3,62 +3,80 @@ import { useState } from "react";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 
-import Dashboard from "../pages/Dashboard";
-import AndroidDashboard from "../pages/AndroidDashboard";
 import HomeAssistant from "../pages/HomeAssistant";
-import Mikrotik from "../pages/Mikrotik";
-import Network from "../pages/Network";
-import Docker from "../pages/Docker";
-import Settings from "../pages/Settings";
+import Gerencia from "../pages/Gerencia";
 
-import { Box } from "@mui/material";
+import { Box, Drawer, useMediaQuery, useTheme } from "@mui/material";
+
+function getInitialPage() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("page") || "homeassistant";
+}
+
+function isKioskMode() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("kiosk") === "1";
+}
 
 export default function Layout() {
 
-    const [page, setPage] = useState("dashboard");
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
+    const kioskMode = isKioskMode();
+    const [page, setPage] = useState(getInitialPage);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+
+    const navigate = (nextPage) => {
+        setPage(nextPage);
+        if (isMobile) setSidebarOpen(false);
+    };
 
     const renderPage = () => {
 
         switch (page) {
 
-            case "android":
-                return <AndroidDashboard />;
-
-            case "homeassistant":
-                return <HomeAssistant />;
-
-            case "mikrotik":
-                return <Mikrotik />;
-
-            case "network":
-                return <Network />;
-
-            case "docker":
-                return <Docker />;
-
-            case "settings":
-                return <Settings />;
+            case "gerencia":
+                return <Gerencia />;
 
             default:
-                return <Dashboard />;
+                return <HomeAssistant />;
         }
 
     };
 
     return (
 
-        <Box sx={{ display: "flex" }}>
+        <Box sx={{ display: "flex", height: "100vh" }}>
 
-            <Sidebar
-                page={page}
-                setPage={setPage}
-            />
+            {isMobile ? (
+                <Drawer
+                    variant="temporary"
+                    open={sidebarOpen}
+                    onClose={() => setSidebarOpen(false)}
+                    ModalProps={{ keepMounted: true }}
+                >
+                    <Sidebar
+                        page={page}
+                        setPage={navigate}
+                    />
+                </Drawer>
+            ) : (
+                sidebarOpen && (
+                    <Sidebar
+                        page={page}
+                        setPage={navigate}
+                    />
+                )
+            )}
 
-            <Box sx={{ flex: 1 }}>
+            <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
 
-                <Header />
+                {!kioskMode && (
+                    <Header onToggleSidebar={() => setSidebarOpen((v) => !v)} />
+                )}
 
-                <Box sx={{ p: 3 }}>
+                <Box sx={{ p: 3, flex: 1, overflowY: "auto" }}>
 
                     {renderPage()}
 

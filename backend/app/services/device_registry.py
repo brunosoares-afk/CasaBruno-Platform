@@ -3,6 +3,19 @@ from app.services.homeassistant_service import get_states
 
 class DeviceRegistry:
 
+    # Palavras que não devem contar como "match" na busca por palavra —
+    # sem isso, "do"/"da"/"a" batem em qualquer nome que tenha essas
+    # letras soltas (ex: "do not disturb"), e verbos de comando
+    # (ligar/status/etc) não são parte do nome do dispositivo.
+    STOPWORDS = {
+        "a", "o", "as", "os", "de", "da", "do", "das", "dos",
+        "um", "uma", "e", "em", "no", "na", "nos", "nas",
+        "para", "por", "com",
+        "status", "estado", "situacao", "situação", "qual", "quais",
+        "ligar", "desligar", "acender", "apagar",
+        "ativar", "desativar", "abrir", "fechar",
+    }
+
     def __init__(self):
         self.entities = []
         self.loaded = False
@@ -121,8 +134,6 @@ class DeviceRegistry:
 
     def score_entity(self, entity, query):
 
-        score = 0
-
         entity_id = self.normalize(
             entity.get("entity_id", "")
         )
@@ -153,39 +164,7 @@ class DeviceRegistry:
             )
         ]
 
-        # ==================================================
-        # PRIORIDADE DOS DOMÍNIOS
-        # ==================================================
-
-        if domain == "light":
-            score += 500
-
-        elif domain == "switch":
-            score += 450
-
-        elif domain == "cover":
-            score += 430
-
-        elif domain == "fan":
-            score += 420
-
-        elif domain == "climate":
-            score += 410
-
-        elif domain == "lock":
-            score += 400
-
-        elif domain == "scene":
-            score += 200
-
-        elif domain == "automation":
-            score += 100
-
-        elif domain == "select":
-            score -= 500
-
-        elif domain == "sensor":
-            score -= 600
+        score = 0
 
         # ==================================================
         # MATCH EXATO
@@ -213,6 +192,9 @@ class DeviceRegistry:
 
         for word in query.split():
 
+            if len(word) <= 2 or word in self.STOPWORDS:
+                continue
+
             if word in entity_id:
                 score += 30
 
@@ -236,7 +218,35 @@ class DeviceRegistry:
             elif query in alias:
                 score += 100
 
-        return score
+        # ==================================================
+        # PRIORIDADE DOS DOMÍNIOS
+        #
+        # Só entra como desempate DEPOIS de já haver algum match de
+        # texto real — se entrasse incondicionalmente, qualquer light/
+        # switch da casa teria score > 0 mesmo sem nenhuma palavra em
+        # comum com o pedido, e o Fred acabaria "encontrando" e
+        # acionando um dispositivo qualquer para comandos que não
+        # batem com nada (ex: "ligar luz da sala" sem luz nenhuma
+        # cadastrada pegava o switch da cozinha por padrão).
+        # ==================================================
+
+        if score == 0:
+            return 0
+
+        domain_bonus = {
+            "light": 500,
+            "switch": 450,
+            "cover": 430,
+            "fan": 420,
+            "climate": 410,
+            "lock": 400,
+            "scene": 200,
+            "automation": 100,
+            "select": -500,
+            "sensor": -600,
+        }.get(domain, 0)
+
+        return score + domain_bonus
 
     # ======================================================
     # NORMALIZE

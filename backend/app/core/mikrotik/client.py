@@ -49,5 +49,12 @@ class MikrotikClient:
         finally:
             pool.disconnect()
 
+    def dhcp_leases(self):
+        api, pool = self.connect()
+        try:
+            return api.get_resource("/ip/dhcp-server/lease").get()
+        finally:
+            pool.disconnect()
+
 
 mikrotik_client = MikrotikClient()

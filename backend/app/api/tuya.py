@@ -1,12 +1,14 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.api.auth import require_gerencia_session
 from app.integrations.tuya import tv
 from app.integrations.tuya import discover
 from app.integrations.tuya import infrared
 
 router = APIRouter(
     prefix="/tuya",
-    tags=["Tuya"]
+    tags=["Tuya"],
+    dependencies=[Depends(require_gerencia_session)]
 )
 
 # ==========================

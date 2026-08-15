@@ -52,6 +52,14 @@ class HomeAssistantClient:
         )
         return r.json()
 
+    def get_raw(self, endpoint):
+        self.reload()
+        return requests.get(
+            self.base + endpoint,
+            headers=self.headers(),
+            timeout=10
+        )
+
     def states(self):
         return self.get("/states")
 

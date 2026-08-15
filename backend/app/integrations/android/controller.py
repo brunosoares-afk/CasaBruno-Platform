@@ -1,10 +1,11 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.api.auth import require_gerencia_session
 from app.core.android.manager import AndroidManager
 from app.core.android import commands
 from app.core.android.wol import send_wol
 
-router = APIRouter(prefix="/android", tags=["Android"])
+router = APIRouter(prefix="/android", tags=["Android"], dependencies=[Depends(require_gerencia_session)])
 
 manager = AndroidManager()
 

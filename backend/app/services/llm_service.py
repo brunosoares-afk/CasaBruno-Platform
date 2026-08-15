@@ -1,28 +1,19 @@
-import json
-import random
-from pathlib import Path
-
 import requests
 
 from app.config.settings import settings
 from app.services import memory_service
-
-EXPRESSIONS_PATH = Path(__file__).resolve().parents[1] / "data" / "fred_expressions.json"
-
-try:
-    with open(EXPRESSIONS_PATH, encoding="utf-8") as f:
-        EXPRESSIONS = json.load(f)
-except Exception:
-    EXPRESSIONS = {}
+from app.services.expressions import pick
+from app.services.homeassistant_service import get_states
 
 SYSTEM_PROMPT = (
-    "Você é o FRED, assistente pessoal da Casa Bruno. Responda em português do Brasil, "
-    "de forma direta, específica e natural, como numa conversa por voz pela Alexa. "
-    "Nunca dê respostas vagas ou genéricas — vá direto ao ponto da pergunta feita. "
-    "Se não souber algo (como notícias, clima ou dados em tempo real), diga isso "
-    "claramente em vez de inventar ou enrolar. Frases curtas, sem markdown, sem listas. "
-    "Dê APENAS a sua resposta, uma única vez. Nunca escreva falas da outra pessoa "
-    "nem invente perguntas ou continue a conversa sozinho."
+    "Você é o FRED, o assistente da Casa Bruno (moram lá Bruno e Taiane), "
+    "direto e à vontade, tom de conversa por voz — nunca robótico. "
+    "Em papo casual, responda de verdade e devolva a pergunta ou puxe "
+    "assunto, criando diálogo de verdade. Em comando ou pergunta objetiva, "
+    "vá direto ao ponto.\n\n"
+    "Português do Brasil, frases curtas, sem markdown. Se não souber (notícia, "
+    "clima, dado em tempo real), diga isso em vez de inventar. Só a sua fala, "
+    "uma vez — nunca escreva o que a outra pessoa diria."
 )
 
 SUMMARY_SYSTEM_PROMPT = (
@@ -42,16 +33,43 @@ class LLMService:
         self.url = settings.OLLAMA_URL
         self.model = getattr(settings, "OLLAMA_MODEL", "llama3.2:1b")
 
-    def _sample_expressions(self, per_category: int = 1) -> str:
-        if not EXPRESSIONS:
+    def _house_snapshot(self) -> str:
+        # Resumo bem curto de propósito — nessa CPU (sem AVX, ver memória
+        # casa-bruno-cpu-no-avx) cada token de prompt custa caro, e listar
+        # os 22 switches por nome inflava o prompt pra 700+ tokens sozinho,
+        # fazendo até "como está seu dia" estourar timeout. Consultas de
+        # status de dispositivo específico já vão pelo caminho rápido
+        # (intent_engine), não passam por aqui.
+        try:
+            entities = get_states()
+        except Exception:
             return ""
-        picked = []
-        for category, options in EXPRESSIONS.items():
-            if options:
-                picked.extend(random.sample(options, min(per_category, len(options))))
-        if not picked:
-            return ""
-        return ", ".join(f'"{p}"' for p in picked)
+
+        people = []
+        on = 0
+        total = 0
+
+        for entity in entities:
+            entity_id = entity.get("entity_id", "")
+            domain = entity_id.split(".")[0]
+            state = entity.get("state")
+            name = entity.get("attributes", {}).get("friendly_name", entity_id)
+
+            if domain == "person" and state in ("home", "not_home"):
+                people.append(f"{name} {'em casa' if state == 'home' else 'fora'}")
+
+            elif domain == "switch" and state in ("on", "off"):
+                total += 1
+                if state == "on":
+                    on += 1
+
+        parts = []
+        if people:
+            parts.append(", ".join(people))
+        if total:
+            parts.append(f"{on}/{total} interruptores ligados")
+
+        return ". ".join(parts)
 
     def _generate(self, system: str, prompt: str, timeout: int = 60) -> str:
         response = requests.post(
@@ -71,7 +89,20 @@ class LLMService:
         data = response.json()
         return data.get("response", "").strip()
 
-    def _build_context(self, person: str):
+    def _knowledge_snippet(self, command: str) -> str:
+        # Mesmo motivo de _house_snapshot: orçamento de token curto
+        # nessa CPU, por isso limit=2 e sem tentar reformular/resumir.
+        try:
+            hits = memory_service.search_knowledge(command, limit=2)
+        except Exception:
+            return ""
+
+        if not hits:
+            return ""
+
+        return " ".join(hit["content"] for hit in hits)
+
+    def _build_context(self, person: str, command: str = ""):
         profile = memory_service.get_profile(person)
         recent = memory_service.get_recent_turns(person)
 
@@ -79,12 +110,17 @@ class LLMService:
         if profile.get("summary"):
             system += f"\n\nO que você sabe sobre {person}: {profile['summary']}"
 
-        expressions = self._sample_expressions()
-        if expressions:
-            system += (
-                f"\n\nPra soar mais natural, pode se inspirar (sem copiar sempre "
-                f"as mesmas) em expressões como: {expressions}."
-            )
+        knowledge = self._knowledge_snippet(command)
+        if knowledge:
+            system += f"\n\nFatos que você conhece, use se forem relevantes: {knowledge}"
+
+        snapshot = self._house_snapshot()
+        if snapshot:
+            system += f"\n\nEstado da casa agora: {snapshot}."
+
+        vibe = pick("caracteristicas_fred")
+        if vibe:
+            system += f"\n\nSeu jeito: {vibe}"
 
         # últimas 2 trocas como lembrete de contexto, em prosa (não em
         # formato de diálogo) pra não incentivar o modelo a continuar
@@ -119,7 +155,7 @@ class LLMService:
         person = person or UNKNOWN_PERSON
 
         try:
-            system, prefix = self._build_context(person)
+            system, prefix = self._build_context(person, prompt)
         except Exception:
             # Falha ao ler memória não pode impedir de responder —
             # segue sem o contexto de perfil/histórico.

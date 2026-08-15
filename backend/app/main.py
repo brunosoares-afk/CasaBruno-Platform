@@ -3,13 +3,20 @@ from app.routers.system import router as system_router
 from app.routers.homeassistant import router as homeassistant_router
 from app.routers.mikrotik import router as mikrotik_router
 from app.routers.docker import router as docker_router
-from app.routers.network import router as network_router
+from app.routers.network import router as network_router, start_packet_loss_monitor
+from app.services.scheduler_service import start_scheduler
+from app.services.ha_websocket_service import start_ha_websocket_relay
+from app.services.automations_service import start_automations
 from app.routers.scenes import router as scenes_router
 from app.routers.fred import router as fred_router
 from app.routers.alexa import router as alexa_router
+from app.routers.whatsapp import router as whatsapp_router
+from app.routers.knowledge import router as knowledge_router
+from app.routers.reminders import router as reminders_router
 from app.api.kernel import router as kernel_router
 from app.api.application import router as application_router
 from app.api.bootstrap import router as bootstrap_router
+from app.api.auth import router as auth_router
 from app.api.config import router as config_router
 from app.api.storage import router as storage_router
 from app.api.database import router as database_router
@@ -18,6 +25,8 @@ from app.api.services import router as services_router
 from app.api.plugins import router as plugins_router
 from app.api.events import router as events_router
 from app.api.tuya import router as tuya_router
+from app.api.google_calendar import router as google_calendar_router
+from app.api.uploads import router as uploads_router, UPLOAD_DIR
 from app.integrations.android.routes import router as android_router
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -45,10 +54,17 @@ def health():
     return {
         "status": "online"
     }
+@app.on_event("startup")
+async def _start_background_tasks():
+    start_packet_loss_monitor()
+    start_scheduler()
+    start_ha_websocket_relay()
+    start_automations()
 # Routers principais
 app.include_router(system_router)
 app.include_router(homeassistant_router)
 # Core
+app.include_router(auth_router)
 app.include_router(kernel_router)
 app.include_router(application_router)
 app.include_router(bootstrap_router)
@@ -60,11 +76,17 @@ app.include_router(services_router)
 app.include_router(plugins_router)
 app.include_router(events_router)
 app.include_router(tuya_router)
+app.include_router(google_calendar_router)
+app.include_router(uploads_router)
 app.include_router(mikrotik_router)
 app.include_router(docker_router)
 app.include_router(network_router)
 app.include_router(scenes_router)
 app.include_router(fred_router)
 app.include_router(alexa_router)
+app.include_router(whatsapp_router)
+app.include_router(knowledge_router)
+app.include_router(reminders_router)
 app.mount("/alexa/audio", StaticFiles(directory="/opt/CasaBruno-Platform/backend/tts_audio"), name="alexa_audio")
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 app.include_router(android_router)

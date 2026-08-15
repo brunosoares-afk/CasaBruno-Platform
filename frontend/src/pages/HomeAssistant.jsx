@@ -1,111 +1,114 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import {
-  Grid,
-  Card,
-  CardContent,
-  Typography,
-  CircularProgress,
   Box,
-  Chip
+  Typography,
+  Chip,
+  CircularProgress,
+  Tabs,
+  Tab
 } from "@mui/material";
 
-import api from "../services/api";
+import { useHomeAssistantStates } from "../hooks/useHomeAssistantStates";
+import { callService } from "../api/homeassistantService";
+
+import InicioView from "./homeassistant/views/InicioView";
+import CamerasView from "./homeassistant/views/CamerasView";
+import EquipamentosView from "./homeassistant/views/EquipamentosView";
+import AreasView from "./homeassistant/views/AreasView";
+import CenasView from "./homeassistant/views/CenasView";
+import AutomacoesView from "./homeassistant/views/AutomacoesView";
+import RedeView from "./homeassistant/views/RedeView";
+import AgendaView from "./homeassistant/views/AgendaView";
+
+const TABS = [
+  { value: "inicio", label: "Início" },
+  { value: "cameras", label: "Câmeras" },
+  { value: "equipamentos", label: "Equipamentos" },
+  { value: "areas", label: "Áreas" },
+  { value: "cenas", label: "Cenas" },
+  { value: "automacoes", label: "Automações" },
+  { value: "rede", label: "Rede" },
+  { value: "agenda", label: "Agenda" },
+];
 
 export default function HomeAssistant() {
-  const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  async function load() {
-    try {
-      const res = await api.get("/homeassistant/summary");
-      setSummary(res.data);
-      setError(null);
-    } catch (e) {
-      setError("Não foi possível conectar ao Home Assistant.");
-    } finally {
-      setLoading(false);
-    }
+  const { data: states, isLoading, isError, refetch } = useHomeAssistantStates();
+  const [tab, setTab] = useState("inicio");
+
+  const byId = useMemo(() => {
+    const map = {};
+    (states || []).forEach((s) => { map[s.entity_id] = s; });
+    return map;
+  }, [states]);
+
+  const online = !isError;
+
+  async function toggleLight(entityId, isOn) {
+    await callService("light", isOn ? "turn_off" : "turn_on", { entity_id: entityId });
+    refetch();
   }
 
-  useEffect(() => {
-    load();
-    const interval = setInterval(load, 15000);
-    return () => clearInterval(interval);
-  }, []);
-
-  if (loading) return <CircularProgress />;
-
-  if (error) {
-    return <Typography color="error">{error}</Typography>;
+  async function pulseSwitch(entityId) {
+    await callService("switch", "turn_on", { entity_id: entityId });
+    refetch();
   }
 
-  const online = summary?.status?.online;
-  const devices = summary?.devices || {};
-  const weather = summary?.weather || {};
+  async function activateScene(entityId) {
+    await callService("scene", "turn_on", { entity_id: entityId });
+    refetch();
+  }
+
+  async function playPause(entityId) {
+    await callService("media_player", "media_play_pause", { entity_id: entityId });
+    refetch();
+  }
+
+  if (isLoading) return <CircularProgress />;
 
   return (
     <>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>
-          Home Assistant
+          Principal
         </Typography>
         <Chip
-          label={online ? "Online" : "Offline"}
+          label={online ? "HA Online" : "HA Offline"}
           color={online ? "success" : "error"}
         />
       </Box>
 
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 3 }}>
-          <Card>
-            <CardContent>
-              <Typography color="text.secondary">Total de entidades</Typography>
-              <Typography variant="h5" sx={{ mt: 1 }}>{devices.total ?? "--"}</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 3 }}>
-          <Card>
-            <CardContent>
-              <Typography color="text.secondary">Online</Typography>
-              <Typography variant="h5" sx={{ mt: 1 }}>{devices.online ?? "--"}</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 3 }}>
-          <Card>
-            <CardContent>
-              <Typography color="text.secondary">Offline</Typography>
-              <Typography variant="h5" sx={{ mt: 1 }}>{devices.offline ?? "--"}</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 3 }}>
-          <Card>
-            <CardContent>
-              <Typography color="text.secondary">Clima</Typography>
-              <Typography variant="h6" sx={{ mt: 1 }}>
-                {weather.state ? `${weather.state}` : "--"}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {devices.domains && Object.entries(devices.domains).map(([domain, count]) => (
-          <Grid size={{ xs: 6, md: 2 }} key={domain}>
-            <Card>
-              <CardContent>
-                <Typography variant="body2" color="text.secondary">{domain}</Typography>
-                <Typography variant="h6">{count}</Typography>
-              </CardContent>
-            </Card>
-          </Grid>
+      <Tabs
+        value={tab}
+        onChange={(_, v) => setTab(v)}
+        variant="scrollable"
+        scrollButtons="auto"
+        allowScrollButtonsMobile
+        sx={{ mb: 3 }}
+      >
+        {TABS.map((t) => (
+          <Tab key={t.value} value={t.value} label={t.label} />
         ))}
-      </Grid>
+      </Tabs>
+
+      {tab === "inicio" && (
+        <InicioView
+          byId={byId}
+          toggleLight={toggleLight}
+          pulseSwitch={pulseSwitch}
+          activateScene={activateScene}
+          playPause={playPause}
+        />
+      )}
+
+      {tab === "cameras" && <CamerasView />}
+      {tab === "equipamentos" && <EquipamentosView />}
+      {tab === "areas" && <AreasView />}
+      {tab === "cenas" && <CenasView />}
+      {tab === "automacoes" && <AutomacoesView />}
+      {tab === "rede" && <RedeView />}
+      {tab === "agenda" && <AgendaView />}
+
     </>
   );
 }

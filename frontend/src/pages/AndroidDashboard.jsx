@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 
 import api from "../services/api";
+import SectionLabel from "../components/dashboard/SectionLabel";
 
 const SCENES = [
   { id: "unitv", label: "UNITV" },
@@ -100,9 +101,9 @@ export default function AndroidDashboard() {
         ))}
       </Grid>
 
-      <Typography variant="h6" sx={{ mt: 4, mb: 2 }}>
+      <SectionLabel color="secondary" sx={{ mt: 4 }}>
         Cenas
-      </Typography>
+      </SectionLabel>
 
       <Grid container spacing={3}>
         {SCENES.map((scene) => (

@@ -1,10 +1,12 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.api.auth import require_gerencia_session
 from app.core.mikrotik.client import mikrotik_client
 
 router = APIRouter(
     prefix="/mikrotik",
-    tags=["MikroTik"]
+    tags=["MikroTik"],
+    dependencies=[Depends(require_gerencia_session)]
 )
 
 
@@ -43,5 +45,13 @@ def resource():
 def interfaces():
     try:
         return mikrotik_client.interfaces()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/leases")
+def leases():
+    try:
+        return mikrotik_client.dhcp_leases()
     except Exception as e:
         return {"error": str(e)}

@@ -10,38 +10,13 @@ import {
 const itens = [
 
     {
-        nome: "Dashboard",
-        page: "dashboard"
-    },
-
-    {
-        nome: "Android",
-        page: "android"
-    },
-
-    {
-        nome: "Rede",
-        page: "network"
-    },
-
-    {
-        nome: "Docker",
-        page: "docker"
-    },
-
-    {
-        nome: "Home Assistant",
+        nome: "Principal",
         page: "homeassistant"
     },
 
     {
-        nome: "MikroTik",
-        page: "mikrotik"
-    },
-
-    {
-        nome: "Configurações",
-        page: "settings"
+        nome: "Gerência",
+        page: "gerencia"
     }
 
 ];
@@ -59,7 +34,10 @@ export default function Sidebar({
             sx={{
                 width: 270,
                 bgcolor: "background.paper",
-                borderRight: "1px solid rgba(255,255,255,.05)"
+                borderRight: "1px solid rgba(255,255,255,.05)",
+                height: "100vh",
+                overflowY: "auto",
+                flexShrink: 0
             }}
         >
 
@@ -72,7 +50,7 @@ export default function Sidebar({
                 }}
             >
 
-                CBOS
+                CASA INTELIGENTE
 
             </Typography>
 

@@ -2,6 +2,7 @@ from app.services.homeassistant_service import (
     call_service,
     get_states,
 )
+from app.services.expressions import pick
 
 
 class AutomationEngine:
@@ -101,19 +102,25 @@ class AutomationEngine:
 
     def _multiple_devices(self, intent):
 
+        devices = intent.get("devices", [])
+        prefix = pick("incerteza_honesta", "Encontrei mais de um com esse nome.")
+
         return {
             "success": False,
-            "message": "Foram encontrados vários dispositivos para este comando.",
-            "count": len(intent.get("devices", [])),
-            "devices": intent.get("devices", [])
+            "message": f"{prefix} Achei {len(devices)} dispositivos parecidos — dá pra ser mais específico?",
+            "count": len(devices),
+            "devices": devices
         }
 
     def _device_not_found(self, intent):
 
+        query = intent.get("query")
+        prefix = pick("incerteza_honesta", "Não achei nada com esse nome.")
+
         return {
             "success": False,
-            "message": "Nenhum dispositivo encontrado.",
-            "query": intent.get("query")
+            "message": f"{prefix} Não encontrei nenhum dispositivo parecido com \"{query}\".",
+            "query": query
         }
 
 

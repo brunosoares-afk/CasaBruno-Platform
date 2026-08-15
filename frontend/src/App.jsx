@@ -1,16 +1,18 @@
 import Layout from "./layout/Layout";
-
-import AndroidDashboard from "./pages/AndroidDashboard";
+import { JarvisProvider } from "./modules/jarvis/context/JarvisContext";
+import { useHomeAssistantStatesSocket } from "./hooks/useHomeAssistantStatesSocket";
 
 export default function App() {
 
+    useHomeAssistantStatesSocket();
+
     return (
 
-        <Layout>
+        <JarvisProvider>
 
-            <AndroidDashboard />
+            <Layout />
 
-        </Layout>
+        </JarvisProvider>
 
     );
 

@@ -35,6 +35,16 @@ class IntentRouter:
         )
 
         self.register(
+            "device_not_found",
+            handlers.device_not_found
+        )
+
+        self.register(
+            "multiple_devices",
+            handlers.multiple_devices
+        )
+
+        self.register(
             "device_list",
             handlers.device_list
         )
@@ -57,6 +67,81 @@ class IntentRouter:
         self.register(
             "sensor_query",
             handlers.sensor_query
+        )
+
+        self.register(
+            "knowledge_search",
+            handlers.knowledge_search
+        )
+
+        self.register(
+            "network_status",
+            handlers.network_status
+        )
+
+        self.register(
+            "weather_query",
+            handlers.weather_query
+        )
+
+        self.register(
+            "house_status",
+            handlers.house_status
+        )
+
+        self.register(
+            "presence_query",
+            handlers.presence_query
+        )
+
+        self.register(
+            "phone_query",
+            handlers.phone_query
+        )
+
+        self.register(
+            "server_system_query",
+            handlers.server_system_query
+        )
+
+        self.register(
+            "set_preference",
+            handlers.set_preference
+        )
+
+        self.register(
+            "set_favorite_device",
+            handlers.set_favorite_device
+        )
+
+        self.register(
+            "favorite_device_query",
+            handlers.favorite_device_query
+        )
+
+        self.register(
+            "memory_summary",
+            handlers.memory_summary
+        )
+
+        self.register(
+            "confirmed_action",
+            handlers.confirmed_action
+        )
+
+        self.register(
+            "confirmation_declined",
+            handlers.confirmation_declined
+        )
+
+        self.register(
+            "ha_system_query",
+            handlers.ha_system_query
+        )
+
+        self.register(
+            "backend_status",
+            handlers.backend_status
         )
 
         self.register(

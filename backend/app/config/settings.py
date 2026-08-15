@@ -65,6 +65,37 @@ class Settings:
     )
 
     # =====================================================
+    # KNOWLEDGE (busca externa tipo Wikipedia)
+    # =====================================================
+
+    WIKIPEDIA_LANG = os.getenv(
+        "WIKIPEDIA_LANG",
+        "pt"
+    )
+
+    KNOWLEDGE_CACHE_DAYS = int(
+        os.getenv(
+            "KNOWLEDGE_CACHE_DAYS",
+            "30"
+        )
+    )
+
+    # =====================================================
+    # FRED PROATIVO
+    # =====================================================
+
+    # Pra onde o Fred manda os avisos proativos (jobs do scheduler_service,
+    # /fred/notify). Era o @lid do self-chat de quando o número do
+    # WhatsApp era o pessoal do Bruno (ver memória casa-bruno-whatsapp-fred)
+    # — desde 2026-08-15 o número é dedicado só ao Fred (ver memória
+    # casa-bruno-whatsapp-reconnect-2026-08-15), então o alvo agora é o
+    # JID de telefone real do Bruno, não mais um self-chat.
+    FRED_NOTIFY_JID = os.getenv(
+        "FRED_NOTIFY_JID",
+        "5527996354512@s.whatsapp.net"
+    )
+
+    # =====================================================
     # DOCKER
     # =====================================================
 
