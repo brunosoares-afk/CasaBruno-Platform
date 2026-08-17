@@ -14,6 +14,7 @@ if not logging.getLogger().handlers:
     logging.basicConfig(level=logging.INFO)
 
 RECONNECT_DELAY_S = 5
+MAX_RECONNECT_DELAY_S = 120
 DETECTION_TICK_S = 5
 TUYA_TICK_S = 5
 PRESENCE_TICK_S = 20
@@ -104,11 +105,12 @@ async def _load_initial_snapshot() -> None:
         _snapshot_by_id.update(preserved)
 
         logger.info("Snapshot inicial carregado: %d entidades", len(_snapshot_by_id))
-    except Exception:
-        logger.exception("Falha ao carregar snapshot inicial do HA")
+    except Exception as exc:
+        logger.warning("Falha ao carregar snapshot inicial do HA: %s", exc)
 
 
 async def _relay_loop() -> None:
+    delay = RECONNECT_DELAY_S
     while True:
         try:
             await _load_initial_snapshot()
@@ -135,6 +137,7 @@ async def _relay_loop() -> None:
                     raise RuntimeError(f"Falha ao assinar state_changed: {ack}")
 
                 logger.info("Conectado ao WebSocket do HA, ouvindo state_changed")
+                delay = RECONNECT_DELAY_S
 
                 async for raw in ws:
                     msg = json.loads(raw)
@@ -169,9 +172,18 @@ async def _relay_loop() -> None:
                         "new_state": new_state,
                     })
 
-        except Exception:
-            logger.exception("Conexão com o WS do HA caiu, tentando de novo em %ds", RECONNECT_DELAY_S)
-            await asyncio.sleep(RECONNECT_DELAY_S)
+        except Exception as exc:
+            # HA Core está desligado de propósito desde 2026-08-16 (migração
+            # em andamento) — logger.exception() aqui gerava um traceback
+            # completo a cada 5s (>1000/h) só de "connection refused",
+            # enterrando erros reais no log. Backoff exponencial + uma linha
+            # concisa em vez de stack trace.
+            logger.warning(
+                "Conexão com o WS do HA caiu (%s), tentando de novo em %ds",
+                exc, delay,
+            )
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, MAX_RECONNECT_DELAY_S)
 
 
 def _now_iso() -> str:

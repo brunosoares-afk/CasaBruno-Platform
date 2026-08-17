@@ -1,5 +1,9 @@
+import logging
+
 from app.core.homeassistant.client import ha_client
 from app.services import detection_service, ha_websocket_service, tuya_service
+
+logger = logging.getLogger(__name__)
 
 
 def get_homeassistant_status():
@@ -18,7 +22,15 @@ def get_states():
     snapshot = ha_websocket_service.get_snapshot()
     if snapshot:
         return snapshot
-    return ha_client.states()
+    try:
+        return ha_client.states()
+    except Exception as exc:
+        # HA Core está desligado de propósito desde 2026-08-16 — sem isso,
+        # todo caller de get_states() (jobs do scheduler, etc.) explodia
+        # com traceback completo de ConnectionRefusedError toda vez que o
+        # snapshot local (que também depende do HA estar de pé) vinha vazio.
+        logger.warning("HA indisponível e snapshot local vazio: %s", exc)
+        return []
 
 
 def get_recognized_person():
