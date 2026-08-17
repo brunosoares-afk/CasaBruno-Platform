@@ -7,6 +7,7 @@ from app.routers.network import router as network_router, start_packet_loss_moni
 from app.services.scheduler_service import start_scheduler
 from app.services.ha_websocket_service import start_ha_websocket_relay
 from app.services.automations_service import start_automations
+from app.services.voice_satellite_service import start_voice_satellite_server
 from app.routers.scenes import router as scenes_router
 from app.routers.fred import router as fred_router
 from app.routers.alexa import router as alexa_router
@@ -60,6 +61,7 @@ async def _start_background_tasks():
     start_scheduler()
     start_ha_websocket_relay()
     start_automations()
+    start_voice_satellite_server()
 # Routers principais
 app.include_router(system_router)
 app.include_router(homeassistant_router)
