@@ -9,9 +9,10 @@ from pydantic import BaseModel
 
 from app.services import voice_service, memory_service
 from app.services.command_parser import command_parser
+from app.services.fred_memory import memory as fred_memory
 from app.services.fred_service import fred
 from app.services.intent_engine import intent_engine
-from app.services.people_service import resolve_person
+from app.services.people_service import resolve_person, is_allowed_whatsapp_sender
 
 router = APIRouter(tags=["WHATSAPP"])
 logger = logging.getLogger("whatsapp")
@@ -35,9 +36,21 @@ class WhatsAppIncoming(BaseModel):
     mimetype: Optional[str] = None
 
 
-def _will_fall_to_llm(text: str) -> bool:
+def _will_fall_to_llm(text: str, sender: str) -> bool:
+    person = resolve_person("whatsapp", sender)
+
+    # Só espia se existe confirmação pendente, sem consumi-la — intent_engine.parse()
+    # tem o efeito colateral de esquecer a confirmação assim que reconhece um
+    # "sim"/"não", e essa função é só uma prévia (decide se manda o aviso de
+    # "pensando") cujo resultado é descartado. Chamar parse() aqui de verdade
+    # consumiria a confirmação e o processamento real, logo depois, não acharia
+    # mais nada — reproduzido ao vivo 2026-08-16: "sim" respondia com o
+    # fallback do LLM em vez de executar a ação combinada.
+    if person and fred_memory.recall_fresh(person, "pending_confirmation", 600):
+        return False
+
     parsed = command_parser.parse(text)
-    intent = intent_engine.parse(parsed)
+    intent = intent_engine.parse(parsed, person=person)
     return intent.get("type") == "unknown"
 
 
@@ -53,7 +66,7 @@ def _notify_thinking(sender: str) -> None:
 
 
 async def _ask_fred(text: str, sender: str) -> str:
-    if _will_fall_to_llm(text):
+    if _will_fall_to_llm(text, sender):
         await asyncio.to_thread(_notify_thinking, sender)
 
     result = await asyncio.to_thread(fred.ask, text, LLM_TIMEOUT, "whatsapp", sender)
@@ -100,6 +113,10 @@ async def incoming(data: WhatsAppIncoming):
         data.sender,
         f"texto={data.text!r}" if data.text else f"audio ({data.mimetype})",
     )
+
+    if not is_allowed_whatsapp_sender(data.sender):
+        logger.warning("Remetente fora da allowlist, ignorado: %s", data.sender)
+        return {"text": None}
 
     if data.text:
         message = await _ask_fred(data.text, data.sender)

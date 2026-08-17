@@ -1,7 +1,13 @@
 from app.core.homeassistant.client import ha_client
 from app.core.logger.logger import logger
 from app.core.events.event_manager import event_manager
-from app.services import tuya_service, scenes_service
+from app.services import alexa_service, homeassistant_service, tuya_service, scenes_service, ptz_service
+
+_MEDIA_SERVICE_TO_COMMAND = {
+    "media_next_track": "next",
+    "media_previous_track": "previous",
+    "media_stop": "stop",
+}
 
 
 class HomeAssistantServices:
@@ -25,8 +31,20 @@ class HomeAssistantServices:
             device_key = tuya_service.device_key_for(entity_id)
             ok = tuya_service.turn_on(device_key) if service == "turn_on" else tuya_service.turn_off(device_key)
             result = {"success": ok, "local": "tuya"}
+        elif domain == "icsee_ptz" and service == "move" and ptz_service.is_managed(entity_id):
+            device_key = ptz_service.device_key_for(entity_id)
+            ok = ptz_service.move(
+                device_key,
+                data.get("cmd", "Stop"),
+                step=data.get("step", 5),
+                preset=data.get("preset", -1),
+            )
+            result = {"success": ok, "local": "dvrip"}
         elif scenes_service.is_managed(entity_id) and service == "turn_on":
             result = scenes_service.run(entity_id)
+        elif domain == "media_player" and alexa_service.is_managed(entity_id):
+            ok = self._call_alexa_media(entity_id, service, data)
+            result = {"success": ok, "local": "alexa"}
         else:
             result = ha_client.call_service(
                 domain,
@@ -50,6 +68,26 @@ class HomeAssistantServices:
         )
 
         return result
+
+    def _call_alexa_media(self, entity_id, service, data):
+        if service == "volume_set":
+            return alexa_service.set_volume(entity_id, data.get("volume_level", 0))
+
+        if service == "media_play_pause":
+            # Sem toggle na lib — decide play/pause pelo estado atual. Usa
+            # o snapshot do relay (homeassistant_service.get_states()), não
+            # ha_client.states() cru — esse não sobrevive à HA desligada
+            # (Fase 10), o snapshot sim.
+            states = homeassistant_service.get_states()
+            entity = next((s for s in states if s.get("entity_id") == entity_id), None)
+            command = "pause" if entity and entity.get("state") == "playing" else "play"
+            return alexa_service.media_command(entity_id, command)
+
+        command = _MEDIA_SERVICE_TO_COMMAND.get(service)
+        if command:
+            return alexa_service.media_command(entity_id, command)
+
+        return False
 
     def turn_on(self, entity_id):
 

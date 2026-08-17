@@ -17,3 +17,7 @@ export async function callService(domain, service, data = {}) {
 export function cameraSnapshotUrl(entityId) {
     return `${api.defaults.baseURL}/homeassistant/camera/${entityId}?t=${Date.now()}`;
 }
+
+export function entityPictureUrl(entityId) {
+    return `${api.defaults.baseURL}/homeassistant/entity_picture/${entityId}`;
+}

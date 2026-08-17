@@ -3,7 +3,7 @@ from fastapi import APIRouter, Response, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from app.core.homeassistant.manager import homeassistant
-from app.services import ha_websocket_service
+from app.services import ha_websocket_service, homeassistant_service, scenes_service
 
 
 router = APIRouter(
@@ -44,7 +44,12 @@ def summary():
 
 @router.get("/states")
 def states():
-    return homeassistant.states.all()
+    # homeassistant.states.all() batia direto na REST crua da HA (sem
+    # fallback) — desde que a HA foi desligada de vez (Fase 10) isso só
+    # dava ConnectionError. homeassistant_service.get_states() já usa o
+    # snapshot do relay (com os sintéticos) e só cai pra HA se o snapshot
+    # estiver vazio, então sobrevive à HA estar fora do ar.
+    return homeassistant_service.get_states()
 
 
 @router.websocket("/ws")
@@ -74,6 +79,11 @@ def areas():
     return homeassistant.registry.areas_with_entities()
 
 
+@router.get("/scenes")
+def scenes():
+    return scenes_service.list_cenas()
+
+
 @router.get("/camera/{entity_id}")
 def camera_proxy(entity_id: str):
     stream = GO2RTC_STREAM_BY_ENTITY.get(entity_id)
@@ -89,6 +99,29 @@ def camera_proxy(entity_id: str):
         )
 
     r = requests.get(f"{GO2RTC_URL}/api/frame.jpeg", params={"src": stream}, timeout=10)
+
+    return Response(
+        content=r.content,
+        status_code=r.status_code,
+        media_type=r.headers.get("Content-Type", "image/jpeg"),
+    )
+
+
+@router.get("/entity_picture/{entity_id}")
+def entity_picture_proxy(entity_id: str):
+    """Proxy pra attributes.entity_picture (capa do álbum etc) de qualquer
+    entidade — o path que o HA manda (ex: /api/media_player_proxy/...) só
+    é alcançável com o token de auth, o browser não pode buscar direto."""
+    snapshot = {s["entity_id"]: s for s in ha_websocket_service.get_snapshot()}
+    entity = snapshot.get(entity_id)
+    picture_path = entity.get("attributes", {}).get("entity_picture") if entity else None
+
+    if not picture_path:
+        return Response(status_code=404)
+
+    protocol = "https" if homeassistant.client.ssl else "http"
+    url = f"{protocol}://{homeassistant.client.host}:{homeassistant.client.port}{picture_path}"
+    r = requests.get(url, headers=homeassistant.client.headers(), timeout=10)
 
     return Response(
         content=r.content,

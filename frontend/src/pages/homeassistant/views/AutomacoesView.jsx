@@ -2,17 +2,17 @@ import { Grid } from "@mui/material";
 import EntitiesStatusCard from "../widgets/EntitiesStatusCard";
 import ActionButtonGrid from "../widgets/ActionButtonGrid";
 
+// As 5 automações de reconhecimento facial/placa (chegada, bom dia,
+// conversa com Taiane, rosto desconhecido, placa OVI8D97) foram removidas
+// do HA em 2026-08-16 — já estavam mortas desde a Fase 1 da migração
+// (trigger era um sensor sintético que só existe no relay do nosso
+// backend, sensor.icsee_pessoa_reconhecida, nunca existiu de verdade no
+// HA Core) e a lógica real já rodava só em app/services/automations_service.py.
+// Ver [[casa-bruno-ha-removal-phases-4-6]].
 const AUTOMACOES = [
     { entityId: "automation.presenca_chegada_em_casa_liga_a_luz", label: "Presença: Chegada em Casa Liga a Luz", showAttribute: "last_triggered" },
-    { entityId: "automation.presenca_chegada_por_reconhecimento_facial", label: "Presença: Chegada por Reconhecimento Facial", showAttribute: "last_triggered" },
-    { entityId: "automation.seguranca_rosto_desconhecido_com_casa_vazia", label: "Segurança: Rosto Desconhecido com Casa Vazia", showAttribute: "last_triggered" },
-    { entityId: "automation.rotina_bom_dia_por_reconhecimento_facial", label: "Rotina: Bom Dia por Reconhecimento Facial", showAttribute: "last_triggered" },
-    { entityId: "automation.rotina_alexa_pergunta_sobre_o_dia_da_taiane", label: "Rotina: Alexa Pergunta sobre o Dia da Taiane", showAttribute: "last_triggered" },
-    { entityId: "automation.portao_abre_ao_reconhecer_placa_ovi8d97", label: "Portão: Abre ao Reconhecer Placa OVI8D97", showAttribute: "last_triggered" },
     { entityId: "automation.btv13_perdeu_conexao_adb", label: "BTV13: Perdeu Conexão ADB", showAttribute: "last_triggered" },
     { entityId: "automation.saude_batimento_cardiaco_elevado", label: "Saúde: Batimento Cardíaco Elevado", showAttribute: "last_triggered" },
-    { entityId: "automation.reset_bom_dia_diario", label: "Reset: Bom Dia Diário", showAttribute: "last_triggered" },
-    { entityId: "automation.reset_conversa_com_taiane_diaria", label: "Reset: Conversa com Taiane Diária", showAttribute: "last_triggered" },
 ];
 
 const EXECUTAR_AGORA = [

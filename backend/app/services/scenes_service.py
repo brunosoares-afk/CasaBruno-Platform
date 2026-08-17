@@ -7,7 +7,7 @@ from app.core.android import commands
 from app.core.android.wol import send_wol
 from app.core.homeassistant.client import ha_client
 from app.integrations.tuya import infrared
-from app.services import homeassistant_service
+from app.services import alexa_service, homeassistant_service, philips_tv_service
 from app.routers.scenes import _run_scene_unitv, _run_scene_desenho_heitor
 
 logger = logging.getLogger("scenes_service")
@@ -87,6 +87,26 @@ def air_temp(temp=23):
     return infrared.air_temp(temp)
 
 
+def tv_philips_power():
+    return {"success": philips_tv_service.power_on()}
+
+
+def tv_philips_power_off():
+    return {"success": philips_tv_service.power_off()}
+
+
+def tv_philips_volume_up():
+    return {"success": philips_tv_service.volume_up()}
+
+
+def tv_philips_volume_down():
+    return {"success": philips_tv_service.volume_down()}
+
+
+def tv_philips_mute():
+    return {"success": philips_tv_service.mute()}
+
+
 def scene_unitv():
     threading.Thread(target=_run_scene_unitv, daemon=True).start()
 
@@ -96,20 +116,28 @@ def scene_desenho_heitor():
 
 
 # ==========================================================
-# AÇÕES QUE AINDA PASSAM PELO HA (Alexa, DND da TV Samsung/Alexa
-# — integrações que só o HA tem hoje, mesmo tratamento dado ao
-# Alexa na Fase 3: migrar a cena não exige resolver isso agora)
+# DND da TV/Alexa — antes passava pelo HA (integração alexa_devices);
+# desde a Fase 8 da remoção do HA fala direto com o alexa-bridge (a TV
+# "Bruno's N65B" é 100% gerenciada pela Alexa, não é Samsung nativa —
+# achado ao auditar, ver [[casa-bruno-voice-piper-migration-2026-08-16]]).
 # ==========================================================
 
+_DND_SWITCH_TO_ENTITY = {
+    "switch.bruno_s_n65b_do_not_disturb": "media_player.bruno_s_n65b",
+    "switch.alexa_taiane_do_not_disturb": "media_player.alexa_taiane",
+}
+
+
 def _ha_switch(entity_id: str, on: bool):
+    media_entity = _DND_SWITCH_TO_ENTITY.get(entity_id)
+    if media_entity:
+        alexa_service.set_dnd(media_entity, on)
+        return
     ha_client.call_service("switch", "turn_on" if on else "turn_off", {"entity_id": entity_id})
 
 
 def _alexa_volume(level: float):
-    ha_client.call_service("media_player", "volume_set", {
-        "entity_id": "media_player.alexa_taiane",
-        "volume_level": level,
-    })
+    alexa_service.set_volume("media_player.alexa_taiane", level)
 
 
 def _lamp(on: bool):
@@ -199,6 +227,11 @@ _SCRIPT_FUNCS = {
     "fred_btv13_back": btv13_back,
     "fred_air_on": air_on,
     "fred_air_off": air_off,
+    "fred_tv_philips_power": tv_philips_power,
+    "fred_tv_philips_power_off": tv_philips_power_off,
+    "fred_tv_philips_volume_up": tv_philips_volume_up,
+    "fred_tv_philips_volume_down": tv_philips_volume_down,
+    "fred_tv_philips_mute": tv_philips_mute,
     "fred_scene_unitv": scene_unitv,
     "fred_scene_desenho_heitor": scene_desenho_heitor,
     "cena_modo_cinema": cena_modo_cinema,
@@ -214,6 +247,31 @@ _SCRIPT_FUNCS = {
 }
 
 SCRIPT_ENTITY_IDS = {f"script.{name}" for name in _SCRIPT_FUNCS}
+
+# Nomes amigáveis das 10 cenas "cena_*" pra grade da Início — a HA
+# fornecia isso via friendly_name do entity_id (puro metadado de
+# listagem, a execução já era 100% local desde a Fase 3). Sem HA pra
+# perguntar mais (desligada de vez, Fase 10), vira lista estática própria
+# — mesmos rótulos já usados em AutomacoesView.jsx pra ficar consistente.
+CENA_LABELS = {
+    "cena_modo_cinema": "Modo Cinema",
+    "cena_fim_de_cinema": "Fim de Cinema",
+    "cena_assistir_tv": "Assistir TV",
+    "cena_modo_btv13": "Modo BTV13",
+    "cena_bom_dia": "Bom Dia",
+    "cena_boa_noite": "Boa Noite",
+    "cena_saida_de_casa": "Saída de Casa",
+    "cena_conforto_ar": "Conforto (Ar)",
+    "cena_nao_perturbe": "Não Perturbe",
+    "cena_silencio_total": "Silêncio Total",
+}
+
+
+def list_cenas() -> list[dict]:
+    return [
+        {"entity_id": f"script.{name}", "label": label}
+        for name, label in CENA_LABELS.items()
+    ]
 
 
 def is_managed(entity_id: str) -> bool:

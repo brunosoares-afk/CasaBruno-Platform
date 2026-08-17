@@ -1,98 +1,67 @@
-import json
-import time
+# area_registry/entity_registry/device_registry só existiam via WebSocket
+# da HA (confirmado bem antes: /api/config/area_registry via REST dava
+# 404) — não tinha como fazer isso com o HomeAssistantClient (REST) já
+# existente. Desde que a HA foi desligada de vez (Fase 10 da remoção,
+# 2026-08-16), essa fonte não existe mais e não vai voltar. A divisão por
+# cômodo nunca foi replicada em outro lugar (é metadado puro, não estado
+# — nada "roda" isso, só agrupa pra exibição), então virou uma lista
+# estática própria em vez de tentar reconstruir via WS morto. Atualize
+# aqui à mão se um cômodo/dispositivo mudar — baixo trânsito, não
+# justifica reconstruir a descoberta automática só pra isso.
+# Nome amigável fixo por entidade — a HA fornecia isso via friendly_name
+# de estado ao vivo; pra Garagem/Cozinha (ainda geridas pelo Tuya, ver
+# [[casa-bruno-migracao-ha-roadmap]] Fase 2) isso nem faria falta, mas pra
+# Sala de estar (media_player/switch geridos só pela HA, que não existe
+# mais) é a única fonte de nome que sobrou — sem isso o dashboard mostrava
+# o entity_id cru. Sempre preenchido, mesmo pra entidade ainda viva, pra
+# não ter dois caminhos de exibição diferentes dependendo se a HA
+# existia ou não quando esse dado foi escrito.
+ENTITY_LABELS = {
+    "switch.portao_casa_switch_1": "Portão",
+    "switch.lampada_cozinha_switch_1": "Lâmpada Cozinha",
+    "media_player.alexa_taiane": "Alexa Taiane",
+    "media_player.bruno_s_n65b": "Bruno's N65B",
+    "switch.alexa_taiane_do_not_disturb": "Alexa Taiane – Não Perturbe",
+    "switch.bruno_s_n65b_do_not_disturb": "Bruno's N65B – Não Perturbe",
+}
 
-import websocket
-
-from app.core.config.config import config
-
-# area_registry/entity_registry/device_registry só existem via WebSocket do
-# HA (confirmado: /api/config/area_registry via REST devolve 404) — não tem
-# como fazer isso com o HomeAssistantClient (requests/REST) já existente.
-# Muda raramente, então cacheia por alguns minutos em vez de abrir uma
-# conexão WebSocket nova a cada requisição.
-CACHE_TTL_SECONDS = 300
+AREAS = [
+    {
+        "area_id": "garagem",
+        "name": "Garagem",
+        "entity_ids": ["switch.portao_casa_switch_1"],
+    },
+    {
+        "area_id": "cozinha",
+        "name": "Cozinha",
+        "entity_ids": ["switch.lampada_cozinha_switch_1"],
+    },
+    {
+        "area_id": "sala_de_estar",
+        "name": "Sala de estar",
+        "entity_ids": [
+            "media_player.alexa_taiane",
+            "media_player.bruno_s_n65b",
+            "switch.alexa_taiane_do_not_disturb",
+            "switch.bruno_s_n65b_do_not_disturb",
+        ],
+    },
+]
 
 
 class HomeAssistantRegistry:
 
-    def __init__(self):
-        self._cache = None
-        self._cached_at = 0
-
-    def _config(self):
-        cfg = config.get("homeassistant")
-        host = cfg.get("host", "127.0.0.1")
-        port = cfg.get("port", 8123)
-        ssl = cfg.get("ssl", False)
-        token = cfg.get("token", "")
-        protocol = "wss" if ssl else "ws"
-        return f"{protocol}://{host}:{port}/api/websocket", token
-
-    def _fetch_raw(self):
-        url, token = self._config()
-        ws = websocket.create_connection(url, timeout=10)
-
-        try:
-            ws.recv()  # auth_required
-
-            ws.send(json.dumps({"type": "auth", "access_token": token}))
-            auth_result = json.loads(ws.recv())
-
-            if auth_result.get("type") != "auth_ok":
-                raise RuntimeError("Falha na autenticação WebSocket do Home Assistant")
-
-            results = {}
-            commands = [
-                ("areas", "config/area_registry/list"),
-                ("entities", "config/entity_registry/list"),
-                ("devices", "config/device_registry/list"),
-            ]
-
-            for i, (key, cmd_type) in enumerate(commands, start=1):
-                ws.send(json.dumps({"id": i, "type": cmd_type}))
-                response = json.loads(ws.recv())
-                results[key] = response.get("result", [])
-
-            return results
-        finally:
-            ws.close()
-
     def areas_with_entities(self, force=False):
-        now = time.time()
-
-        if not force and self._cache is not None and (now - self._cached_at) < CACHE_TTL_SECONDS:
-            return self._cache
-
-        raw = self._fetch_raw()
-
-        device_area = {d["id"]: d.get("area_id") for d in raw["devices"]}
-        area_names = {a["area_id"]: a["name"] for a in raw["areas"]}
-
-        grouped = {}
-        for e in raw["entities"]:
-            # entity_category "diagnostic"/"config" e disabled_by são
-            # entidades internas de integração (ex: "_pre_release", sensores
-            # de update) — não fazem sentido numa visão por área.
-            if e.get("entity_category") or e.get("disabled_by"):
-                continue
-
-            area_id = e.get("area_id") or device_area.get(e.get("device_id"))
-            if not area_id:
-                continue
-            grouped.setdefault(area_id, []).append(e["entity_id"])
-
-        result = [
+        return [
             {
-                "area_id": area_id,
-                "name": area_names.get(area_id, area_id),
-                "entity_ids": entity_ids,
+                **area,
+                "entities": [
+                    {"entity_id": eid, "label": ENTITY_LABELS.get(eid)}
+                    for eid in area["entity_ids"]
+                ],
             }
-            for area_id, entity_ids in grouped.items()
+            for area in AREAS
         ]
-
-        self._cache = result
-        self._cached_at = now
-        return result
 
 
 registry = HomeAssistantRegistry()

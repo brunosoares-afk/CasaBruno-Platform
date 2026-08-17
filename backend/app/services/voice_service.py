@@ -1,16 +1,14 @@
-import asyncio
+import io
 import shutil
 import subprocess
 import tempfile
 import wave
 from pathlib import Path
 
-import requests
 from wyoming.asr import Transcribe, Transcript
-from wyoming.audio import wav_to_chunks
+from wyoming.audio import AudioChunk, AudioStart, AudioStop, wav_to_chunks
 from wyoming.client import AsyncTcpClient
-
-from app.core.homeassistant.client import ha_client
+from wyoming.tts import Synthesize, SynthesizeVoice
 
 # O addon oficial core_whisper (app_core_whisper, porta 10300) trava com
 # SIGILL nesta CPU (Intel Core i3 M350, sem AVX) em qualquer backend
@@ -21,13 +19,16 @@ from app.core.homeassistant.client import ha_client
 WHISPER_HOST = "127.0.0.1"
 WHISPER_PORT = 10301
 
-# TTS via HA Cloud (Nabu Casa), mesma voz neural Azure já usada nos
-# anúncios da Alexa (tts_service.py) — trocado a partir do Piper local
-# (pt_BR-faber-medium) porque soava robótico demais comparado ao que o
-# usuário queria (ver memória casa-bruno-custom-frontend-dashboard). Já
-# é uma assinatura paga existente, sem custo extra, e a qualidade da voz
-# neural é muito superior à do Piper.
-DEFAULT_TTS_VOICE = "AntonioNeural"
+# TTS via Piper local (container cbos-piper, Fase 6 da remoção do HA) —
+# até 2026-08-16 isso ia pro HA Cloud (Nabu Casa, voz neural Azure); a
+# qualidade era melhor, mas todo canal (WhatsApp, Jarvis, avisos
+# proativos) dependia da HA pra falar. Trocado de volta pro Piper
+# (achado "robótico demais" quando isso foi decidido antes, ver memória
+# casa-bruno-custom-frontend-dashboard) como troca consciente de
+# qualidade por independência — decisão do usuário, não peso técnico.
+PIPER_HOST = "127.0.0.1"
+PIPER_PORT = 10200
+DEFAULT_TTS_VOICE = "pt_BR-faber-medium"
 
 
 def _run_ffmpeg(args: list) -> None:
@@ -69,52 +70,57 @@ async def transcribe(audio_bytes: bytes) -> str:
                     return Transcript.from_event(event).text.strip()
 
 
-def _ha_cloud_tts_sync(text: str, voice: str) -> bytes:
-    """Texto -> mp3 (bytes) via HA Cloud (mesmo endpoint /tts_get_url
-    usado pelos anúncios da Alexa em tts_service.py)."""
+async def piper_tts(text: str, voice: str) -> bytes:
+    """Texto -> wav (bytes) via nosso container Piper standalone (Wyoming,
+    porta 10200, ver [[casa-bruno-ha-removal-phases-4-6]] Fase 6)."""
 
-    data = ha_client.post(
-        "/tts_get_url",
-        {
-            "platform": "cloud",
-            "message": text,
-            "language": "pt-BR",
-            "options": {"voice": voice},
-        },
-    )
+    async with AsyncTcpClient(PIPER_HOST, PIPER_PORT) as client:
+        await client.write_event(
+            Synthesize(text=text, voice=SynthesizeVoice(name=voice)).event()
+        )
 
-    audio_path = data.get("path")
-    if not audio_path:
-        raise RuntimeError("HA Cloud não retornou áudio (sem 'path' na resposta)")
+        wav_params = None
+        pcm = bytearray()
 
-    protocol = "https" if ha_client.ssl else "http"
-    audio_url = f"{protocol}://{ha_client.host}:{ha_client.port}{audio_path}"
+        while True:
+            event = await client.read_event()
+            if event is None:
+                break
+            if AudioStart.is_type(event.type):
+                start = AudioStart.from_event(event)
+                wav_params = (start.rate, start.width, start.channels)
+            elif AudioChunk.is_type(event.type):
+                pcm.extend(AudioChunk.from_event(event).audio)
+            elif AudioStop.is_type(event.type):
+                break
 
-    response = requests.get(audio_url, timeout=15)
-    response.raise_for_status()
-    return response.content
+    if wav_params is None:
+        raise RuntimeError("Piper não retornou áudio")
 
+    rate, width, channels = wav_params
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wav_file:
+        wav_file.setnchannels(channels)
+        wav_file.setsampwidth(width)
+        wav_file.setframerate(rate)
+        wav_file.writeframes(bytes(pcm))
 
-async def _ha_cloud_tts(text: str, voice: str) -> bytes:
-    # ha_client/requests são síncronos — roda numa thread separada pra
-    # não travar o event loop enquanto espera a rede (chamada sempre
-    # feita com await, tanto do WhatsApp quanto do /speak do navegador).
-    return await asyncio.to_thread(_ha_cloud_tts_sync, text, voice)
+    return buf.getvalue()
 
 
 async def synthesize(text: str, voice: str | None = None) -> bytes:
-    """Texto -> áudio ogg/opus (nota de voz do WhatsApp) via HA Cloud."""
+    """Texto -> áudio ogg/opus (nota de voz do WhatsApp) via Piper local."""
 
-    mp3_bytes = await _ha_cloud_tts(text, voice or DEFAULT_TTS_VOICE)
+    wav_bytes = await piper_tts(text, voice or DEFAULT_TTS_VOICE)
 
     tmp_dir = Path(tempfile.mkdtemp())
     try:
-        mp3_path = tmp_dir / "in.mp3"
+        wav_path = tmp_dir / "in.wav"
         ogg_path = tmp_dir / "out.ogg"
-        mp3_path.write_bytes(mp3_bytes)
+        wav_path.write_bytes(wav_bytes)
 
         _run_ffmpeg([
-            "-i", str(mp3_path),
+            "-i", str(wav_path),
             "-c:a", "libopus", "-b:a", "32k", "-ar", "48000", "-ac", "1",
             str(ogg_path),
         ])
@@ -125,21 +131,6 @@ async def synthesize(text: str, voice: str | None = None) -> bytes:
 
 
 async def synthesize_wav(text: str, voice: str | None = None) -> bytes:
-    """Texto -> áudio wav (tocável direto no navegador) via HA Cloud."""
+    """Texto -> áudio wav (tocável direto no navegador) via Piper local."""
 
-    mp3_bytes = await _ha_cloud_tts(text, voice or DEFAULT_TTS_VOICE)
-
-    tmp_dir = Path(tempfile.mkdtemp())
-    try:
-        mp3_path = tmp_dir / "in.mp3"
-        wav_path = tmp_dir / "out.wav"
-        mp3_path.write_bytes(mp3_bytes)
-
-        _run_ffmpeg([
-            "-i", str(mp3_path),
-            str(wav_path),
-        ])
-
-        return wav_path.read_bytes()
-    finally:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
+    return await piper_tts(text, voice or DEFAULT_TTS_VOICE)

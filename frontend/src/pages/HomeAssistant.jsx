@@ -64,6 +64,21 @@ export default function HomeAssistant() {
     refetch();
   }
 
+  async function mediaNext(entityId) {
+    await callService("media_player", "media_next_track", { entity_id: entityId });
+    refetch();
+  }
+
+  async function mediaPrevious(entityId) {
+    await callService("media_player", "media_previous_track", { entity_id: entityId });
+    refetch();
+  }
+
+  async function setVolume(entityId, level) {
+    await callService("media_player", "volume_set", { entity_id: entityId, volume_level: level });
+    refetch();
+  }
+
   if (isLoading) return <CircularProgress />;
 
   return (
@@ -98,6 +113,9 @@ export default function HomeAssistant() {
           pulseSwitch={pulseSwitch}
           activateScene={activateScene}
           playPause={playPause}
+          mediaNext={mediaNext}
+          mediaPrevious={mediaPrevious}
+          setVolume={setVolume}
         />
       )}
 

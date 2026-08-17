@@ -53,3 +53,18 @@ export function useHomeAssistantAreas() {
         staleTime: 5 * 60 * 1000,
     });
 }
+
+export async function getHaScenes() {
+    const res = await api.get("/homeassistant/scenes");
+    return res.data; // [{entity_id, label}]
+}
+
+// Lista fixa no backend (scenes_service.CENA_LABELS), só muda quando uma
+// cena nova é criada no código — mesmo cache longo das áreas.
+export function useHomeAssistantScenes() {
+    return useQuery({
+        queryKey: ["homeassistant", "scenes"],
+        queryFn: getHaScenes,
+        staleTime: 5 * 60 * 1000,
+    });
+}

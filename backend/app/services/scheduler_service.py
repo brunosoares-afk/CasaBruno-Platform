@@ -21,10 +21,24 @@ TICK_SECONDS = 60
 WEATHER_HOUR = 8
 AGENDA_HOUR = 21
 
-# "Já rodou hoje" por job — em memória, cai num restart (mesma
-# limitação já aceita pras sessões da Gerência em auth.py). Chaves:
-# nome do job -> data (YYYY-MM-DD) da última execução.
-_last_run: dict[str, str] = {}
+# "Já rodou hoje" por job — persistido via fred_memory (arquivo em disco,
+# sobrevive a restart) em vez de só um dict em memória. Antes disso, cada
+# restart do backend depois da hora do job (08:00/21:00) fazia o job
+# "achar" que ainda não tinha rodado hoje e disparar de novo na hora —
+# reproduzido de verdade em 2026-08-16: várias mensagens de "Bom dia"
+# repetidas no WhatsApp, uma por cada restart do cbos-backend feito
+# durante trabalho de tarde nessa sessão. Chave: nome do job -> data
+# (YYYY-MM-DD) da última execução.
+_LAST_RUN_KEY_PREFIX = "scheduler_last_run_"
+
+
+def _job_already_ran_today(job: str) -> bool:
+    return fred_memory.recall(None, _LAST_RUN_KEY_PREFIX + job) == _today()
+
+
+def _mark_job_ran(job: str) -> None:
+    fred_memory.remember(None, _LAST_RUN_KEY_PREFIX + job, _today())
+
 
 # A mensagem de "agenda não conectada" só deve ser mandada uma vez na
 # vida, não repetir todo dia — controlada à parte do _last_run diário.
@@ -40,9 +54,9 @@ def _now_hour() -> int:
 
 
 async def _weather_job():
-    if _last_run.get("weather") == _today() or _now_hour() < WEATHER_HOUR:
+    if _job_already_ran_today("weather") or _now_hour() < WEATHER_HOUR:
         return
-    _last_run["weather"] = _today()
+    _mark_job_ran("weather")
 
     try:
         weather = await asyncio.to_thread(weather_service.get_current)
@@ -58,9 +72,9 @@ async def _weather_job():
 async def _agenda_job():
     global _agenda_not_connected_notified
 
-    if _last_run.get("agenda") == _today() or _now_hour() < AGENDA_HOUR:
+    if _job_already_ran_today("agenda") or _now_hour() < AGENDA_HOUR:
         return
-    _last_run["agenda"] = _today()
+    _mark_job_ran("agenda")
 
     try:
         if not google_calendar.is_connected():
@@ -90,7 +104,7 @@ async def _agenda_job():
 
 
 async def _lamp_job():
-    if _last_run.get("lamp") == _today():
+    if _job_already_ran_today("lamp"):
         return
 
     try:
@@ -106,7 +120,7 @@ async def _lamp_job():
         if not lights_on:
             return
 
-        _last_run["lamp"] = _today()
+        _mark_job_ran("lamp")
         names = ", ".join(
             s.get("attributes", {}).get("friendly_name", s["entity_id"]) for s in lights_on
         )

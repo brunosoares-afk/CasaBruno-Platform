@@ -20,9 +20,9 @@ export default function AreasView() {
     const areasComDispositivos = (areas || [])
         .map((area) => ({
             ...area,
-            entities: area.entity_ids
-                .filter((id) => DOMINIOS_RELEVANTES.includes(id.split(".")[0]))
-                .map((entityId) => ({ entityId })),
+            entities: area.entities
+                .filter(({ entity_id }) => DOMINIOS_RELEVANTES.includes(entity_id.split(".")[0]))
+                .map(({ entity_id, label }) => ({ entityId: entity_id, label })),
         }))
         .filter((area) => area.entities.length > 0);
 

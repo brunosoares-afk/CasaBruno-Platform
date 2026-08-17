@@ -49,6 +49,11 @@ class IntentEngine:
         (["vou sair"], ("turn_on", "script.cena_saida_de_casa")),
         (["estou chegando", "ja estou chegando", "já estou chegando"], ("turn_on", "script.cena_bom_dia")),
         (["esta calor", "está calor"], ("turn_on", "script.cena_conforto_ar")),
+        (["ligar a tv philips", "liga a tv philips", "ligar tv da sala", "liga tv da sala"], ("turn_on", "script.fred_tv_philips_power")),
+        (["desligar a tv philips", "desliga a tv philips", "desligar tv da sala", "desliga tv da sala"], ("turn_on", "script.fred_tv_philips_power_off")),
+        (["aumentar volume da tv philips", "aumenta volume da tv philips", "aumentar volume da tv da sala"], ("turn_on", "script.fred_tv_philips_volume_up")),
+        (["diminuir volume da tv philips", "diminui volume da tv philips", "diminuir volume da tv da sala"], ("turn_on", "script.fred_tv_philips_volume_down")),
+        (["mudo na tv philips", "silenciar tv philips", "mudo na tv da sala"], ("turn_on", "script.fred_tv_philips_mute")),
     ]
 
     # ======================================================

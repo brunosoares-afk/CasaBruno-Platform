@@ -10,7 +10,7 @@ export async function getWeather() {
             latitude: LATITUDE,
             longitude: LONGITUDE,
             current: "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m",
-            daily: "temperature_2m_max,temperature_2m_min",
+            daily: "weather_code,temperature_2m_max,temperature_2m_min",
             timezone: "America/Sao_Paulo",
         },
         timeout: 10000,

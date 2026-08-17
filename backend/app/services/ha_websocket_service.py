@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import websockets
 
 from app.core.homeassistant.client import ha_client
-from app.services import detection_service, tuya_service
+from app.services import detection_service, presence_service, tuya_service
 
 logger = logging.getLogger("ha_websocket_service")
 logger.setLevel(logging.INFO)
@@ -16,12 +16,17 @@ if not logging.getLogger().handlers:
 RECONNECT_DELAY_S = 5
 DETECTION_TICK_S = 5
 TUYA_TICK_S = 5
+PRESENCE_TICK_S = 20
 
 # Esses entity_id passam a ser lidos só pelo _tuya_loop (polling local direto
 # nos dispositivos) — o HA também tem a integração Tuya Cloud rodando pra
 # eles, então o _relay_loop ignora os eventos state_changed que chegam do HA
 # pra esses IDs, senão os dois ficariam brigando pra escrever o mesmo estado.
 TUYA_MANAGED_ENTITY_IDS = tuya_service.MANAGED_ENTITY_IDS
+
+# Mesma ideia, pra presença de rede (leases do MikroTik) em vez do app
+# companion da HA (mobile_app) — 2026-08-16, ver [[casa-bruno-migracao-ha-roadmap]].
+PRESENCE_MANAGED_ENTITY_IDS = set(presence_service.MAC_TO_ENTITY.values())
 
 # Snapshot completo em memória, mantido em sincronia pelos eventos
 # state_changed — mesmo padrão simples já usado em outros lugares desse
@@ -80,9 +85,24 @@ def _ws_url() -> str:
 async def _load_initial_snapshot() -> None:
     try:
         states = await asyncio.to_thread(ha_client.states)
+
+        # Preserva os valores sintéticos (Tuya/presença) que já estavam no
+        # snapshot em vez de limpar tudo — sem isso, toda reconexão do
+        # relay (comum, ver RECONNECT_DELAY_S) reintroduzia por um instante
+        # o valor cru da HA pra esses entity_id (ex: person.taiane sempre
+        # "unknown" na HA de verdade, nunca teve tracker configurado lá)
+        # até o próximo tick do loop correspondente corrigir — pra Tuya
+        # (5s) passava despercebido, pra presença (20s) já dava pra ver
+        # "Desconhecido" na tela. Reproduzido ao vivo 2026-08-16.
+        managed = TUYA_MANAGED_ENTITY_IDS | PRESENCE_MANAGED_ENTITY_IDS
+        preserved = {k: v for k, v in _snapshot_by_id.items() if k in managed}
+
         _snapshot_by_id.clear()
         for entity in states:
-            _snapshot_by_id[entity["entity_id"]] = entity
+            if entity["entity_id"] not in managed:
+                _snapshot_by_id[entity["entity_id"]] = entity
+        _snapshot_by_id.update(preserved)
+
         logger.info("Snapshot inicial carregado: %d entidades", len(_snapshot_by_id))
     except Exception:
         logger.exception("Falha ao carregar snapshot inicial do HA")
@@ -131,6 +151,11 @@ async def _relay_loop() -> None:
                     if entity_id in TUYA_MANAGED_ENTITY_IDS:
                         # Fonte da verdade pra esses IDs é o _tuya_loop (polling
                         # local), não o HA (que também escuta a Tuya Cloud).
+                        continue
+
+                    if entity_id in PRESENCE_MANAGED_ENTITY_IDS:
+                        # Fonte da verdade agora é o _presence_loop (leases do
+                        # MikroTik), não o app companion da HA (mobile_app).
                         continue
 
                     if new_state is None:
@@ -309,7 +334,43 @@ async def _tuya_loop() -> None:
         await asyncio.sleep(TUYA_TICK_S)
 
 
+def _build_presence_entities() -> dict[str, dict]:
+    now = _now_iso()
+    entities: dict[str, dict] = {}
+
+    for entity_id, state in presence_service.get_presence().items():
+        entities[entity_id] = {
+            "entity_id": entity_id,
+            "state": state,
+            "attributes": {"friendly_name": presence_service.FRIENDLY_NAME.get(entity_id, entity_id)},
+            "last_updated": now,
+        }
+
+    return entities
+
+
+async def _presence_loop() -> None:
+    while True:
+        try:
+            entities = await asyncio.to_thread(_build_presence_entities)
+            for entity_id, new_state in entities.items():
+                old = _snapshot_by_id.get(entity_id)
+                _snapshot_by_id[entity_id] = new_state
+                changed = old is None or old.get("state") != new_state.get("state")
+                if changed:
+                    await _broadcast({
+                        "type": "state_changed",
+                        "entity_id": entity_id,
+                        "new_state": new_state,
+                    })
+        except Exception:
+            logger.exception("Falha no loop de presença (leases do MikroTik)")
+
+        await asyncio.sleep(PRESENCE_TICK_S)
+
+
 def start_ha_websocket_relay():
     asyncio.create_task(_relay_loop())
     asyncio.create_task(_detection_loop())
     asyncio.create_task(_tuya_loop())
+    asyncio.create_task(_presence_loop())

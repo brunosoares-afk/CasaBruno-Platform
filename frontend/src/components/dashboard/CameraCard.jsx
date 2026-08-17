@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Card, Box, Typography } from "@mui/material";
+import { Card, Box, Typography, Dialog, IconButton } from "@mui/material";
 import { keyframes } from "@emotion/react";
 import VideocamOffIcon from "@mui/icons-material/VideocamOff";
+import CloseIcon from "@mui/icons-material/Close";
 import { cameraSnapshotUrl } from "../../api/homeassistantService";
 
 const pulse = keyframes`
@@ -13,6 +14,7 @@ export default function CameraCard({ entityId, name, refreshMs = 15000 }) {
 
     const [src, setSrc] = useState(() => cameraSnapshotUrl(entityId));
     const [failed, setFailed] = useState(false);
+    const [expanded, setExpanded] = useState(false);
 
     useEffect(() => {
 
@@ -58,7 +60,10 @@ export default function CameraCard({ entityId, name, refreshMs = 15000 }) {
 
             </Box>
 
-            <Box sx={{ aspectRatio: "16 / 9", bgcolor: "background.default", mt: 1 }}>
+            <Box
+                sx={{ aspectRatio: "16 / 9", bgcolor: "background.default", mt: 1, cursor: failed ? "default" : "pointer" }}
+                onClick={() => !failed && setExpanded(true)}
+            >
 
                 {!failed ? (
                     <Box
@@ -78,6 +83,18 @@ export default function CameraCard({ entityId, name, refreshMs = 15000 }) {
                 )}
 
             </Box>
+
+            <Dialog open={expanded} onClose={() => setExpanded(false)} maxWidth="lg" fullWidth>
+                <Box sx={{ position: "relative", bgcolor: "background.default" }}>
+                    <IconButton
+                        onClick={() => setExpanded(false)}
+                        sx={{ position: "absolute", top: 8, right: 8, bgcolor: "rgba(0,0,0,.5)", color: "#fff", "&:hover": { bgcolor: "rgba(0,0,0,.7)" } }}
+                    >
+                        <CloseIcon />
+                    </IconButton>
+                    <Box component="img" src={src} sx={{ width: "100%", display: "block" }} />
+                </Box>
+            </Dialog>
 
         </Card>
 

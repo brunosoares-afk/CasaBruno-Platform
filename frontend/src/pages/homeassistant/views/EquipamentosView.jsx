@@ -7,6 +7,9 @@ import SmartDisplayIcon from "@mui/icons-material/SmartDisplay";
 import AcUnitIcon from "@mui/icons-material/AcUnit";
 import CloseIcon from "@mui/icons-material/Close";
 import SensorDoorIcon from "@mui/icons-material/SensorDoor";
+import VolumeUpIcon from "@mui/icons-material/VolumeUp";
+import VolumeDownIcon from "@mui/icons-material/VolumeDown";
+import VolumeOffIcon from "@mui/icons-material/VolumeOff";
 
 import EntitiesStatusCard from "../widgets/EntitiesStatusCard";
 import ActionButtonGrid from "../widgets/ActionButtonGrid";
@@ -18,7 +21,6 @@ const STATUS_GERAL = [
     { entityId: "sensor.poco_x8_heart_rate", label: "Batimento cardíaco" },
     { entityId: "switch.portao_casa_switch_1", label: "Portão" },
     { entityId: "media_player.bruno_s_n65b", label: "TV" },
-    { entityId: "media_player.alexa_taiane", label: "Alexa" },
 ];
 
 const ILUMINACAO = [
@@ -45,6 +47,11 @@ const CONTROLES = [
     { label: "Projetor Voltar", icon: <ArrowBackIcon fontSize="small" />, domain: "script", service: "turn_on", entityId: "script.fred_projector_back" },
     { label: "Ar Ligar", icon: <AcUnitIcon fontSize="small" />, domain: "script", service: "turn_on", entityId: "script.fred_air_on" },
     { label: "Ar Desligar", icon: <CloseIcon fontSize="small" />, domain: "script", service: "turn_on", entityId: "script.fred_air_off" },
+    { label: "TV Philips Ligar", icon: <TvIcon fontSize="small" />, domain: "script", service: "turn_on", entityId: "script.fred_tv_philips_power" },
+    { label: "TV Philips Desligar", icon: <CloseIcon fontSize="small" />, domain: "script", service: "turn_on", entityId: "script.fred_tv_philips_power_off" },
+    { label: "TV Philips Vol +", icon: <VolumeUpIcon fontSize="small" />, domain: "script", service: "turn_on", entityId: "script.fred_tv_philips_volume_up" },
+    { label: "TV Philips Vol -", icon: <VolumeDownIcon fontSize="small" />, domain: "script", service: "turn_on", entityId: "script.fred_tv_philips_volume_down" },
+    { label: "TV Philips Mudo", icon: <VolumeOffIcon fontSize="small" />, domain: "script", service: "turn_on", entityId: "script.fred_tv_philips_mute" },
 ];
 
 const DETECCAO_FACIAL = [

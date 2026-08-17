@@ -1,19 +1,20 @@
+import asyncio
 import subprocess
 import uuid
 import os
 import time
 from pathlib import Path
 
-import requests
-
-from app.core.homeassistant.client import ha_client
+from app.services import voice_service
 
 AUDIO_DIR = Path("/opt/CasaBruno-Platform/backend/tts_audio")
 PUBLIC_BASE_URL = "https://hda08fx9s7v.sn.mynetname.net/alexa/audio"
 
-TTS_PLATFORM = "cloud"
-TTS_LANGUAGE = "pt-BR"
-TTS_VOICE = "AntonioNeural"
+# TTS via Piper local (container cbos-piper) — até 2026-08-16 usava o HA
+# Cloud (Nabu Casa, voz Antônio); trocado junto com voice_service.py na
+# mesma decisão (ver [[casa-bruno-ha-removal-phases-4-6]]), pra skill
+# Alexa não depender mais do HA pra falar de volta.
+TTS_VOICE = "pt_BR-faber-medium"
 
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -29,38 +30,20 @@ def _cleanup_old_files(max_age_seconds=3600):
 
 
 def synthesize(text):
-    """Gera audio MP3 (48kbps, 16000Hz) a partir de texto, usando a voz
-    Antônio do Home Assistant Cloud (Nabu Casa). Retorna a URL publica
-    do arquivo gerado."""
+    """Gera audio MP3 (48kbps, 16000Hz) a partir de texto, usando o Piper
+    local. Retorna a URL publica do arquivo gerado."""
 
     _cleanup_old_files()
 
     file_id = uuid.uuid4().hex
-    raw_path = f"/tmp/fred_tts_{file_id}.mp3"
+    raw_path = f"/tmp/fred_tts_{file_id}.wav"
     mp3_path = str(AUDIO_DIR / f"{file_id}.mp3")
 
     try:
-        data = ha_client.post(
-            "/tts_get_url",
-            {
-                "platform": TTS_PLATFORM,
-                "message": text,
-                "language": TTS_LANGUAGE,
-                "options": {"voice": TTS_VOICE},
-            },
-        )
-        audio_path = data.get("path")
-        if not audio_path:
-            return None
-
-        protocol = "https" if ha_client.ssl else "http"
-        audio_url = f"{protocol}://{ha_client.host}:{ha_client.port}{audio_path}"
-
-        audio_response = requests.get(audio_url, timeout=15)
-        audio_response.raise_for_status()
+        wav_bytes = asyncio.run(voice_service.piper_tts(text, TTS_VOICE))
 
         with open(raw_path, "wb") as f:
-            f.write(audio_response.content)
+            f.write(wav_bytes)
 
         try:
             subprocess.run(

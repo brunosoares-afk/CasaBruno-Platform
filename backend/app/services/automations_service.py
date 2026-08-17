@@ -39,18 +39,9 @@ async def _run_tracked(coro):
 def get_automation_error_count() -> int:
     return _automation_errors["count"]
 
-ALEXA_TAIANE_SPEAK_ENTITY = "notify.alexa_taiane_speak"
-ALEXA_TAIANE_DEVICE_ID = "a928b973766d1a256ff4a99c46a0be38"
-ALEXA_TAIANE_PLAYER = "media_player.alexa_taiane"
 MOBILE_APP_SERVICE = "mobile_app_poco_x8"
 
 PERSON_ENTITIES = ("person.casa_inteligente", "person.taiane")
-
-# Fase 7 — saudação por pessoa quando chega em casa depois das 18h.
-PERSON_WELCOME = {
-    "person.casa_inteligente": "Bem-vindo, Bruno.",
-    "person.taiane": "Bem-vinda, Taiane.",
-}
 
 # Último estado completo conhecido por entity_id — semeado pelo snapshot
 # inicial que o _relay_loop já manda, depois mantido pelos state_changed.
@@ -134,14 +125,18 @@ async def _push(title: str, message: str):
     await _call_ha("notify", MOBILE_APP_SERVICE, {"title": title, "message": message})
 
 
-async def _alexa_speak(message: str):
-    await _call_ha("notify", "send_message", {"entity_id": ALEXA_TAIANE_SPEAK_ENTITY, "message": message})
+async def _announce(message: str):
+    """Antes falava pela Alexa (notify.alexa_taiane_speak) — abandonado
+    junto com a integração Alexa (Fase 5, ver [[casa-bruno-ha-removal-phases-4-6]]),
+    agora avisa por WhatsApp (texto + voz) via notify_service, mesmo
+    caminho já usado pelos avisos proativos do scheduler_service."""
+    await notify_service.notify(message)
 
 
 # ==========================================================
 # 1. presenca_chegada_liga_luz — Fase 7: só depois das 18h (chegar de
-# manhã/tarde não precisa de luz nem saudação), e agora fala boas-vindas
-# pela Alexa em vez de só ligar a luz. Deliberadamente NÃO mexe no
+# manhã/tarde não precisa de luz nem saudação), e agora manda boas-vindas
+# por WhatsApp em vez de só ligar a luz. Deliberadamente NÃO mexe no
 # portão aqui — decisão de escopo explícita do usuário, ver
 # [[casa-bruno-fase7-automacoes-inteligentes]]: abrir o portão sozinho
 # por presença já causou um incidente de segurança antes.
@@ -153,10 +148,9 @@ async def _presenca_chegada_liga_luz(entity_id: str, new_state: dict):
         return
 
     await _call_device("switch", "turn_on", "switch.lampada_cozinha_switch_1")
-
-    welcome = PERSON_WELCOME.get(entity_id)
-    if welcome:
-        await _alexa_speak(welcome)
+    # Mensagem de boas-vindas desativada a pedido do usuário 2026-08-16 —
+    # luz continua acendendo, só o aviso por WhatsApp foi tirado (mesma
+    # decisão aplicada em _chegada_reconhecimento_facial acima).
 
 
 # ==========================================================
@@ -186,17 +180,7 @@ async def _rotina_bom_dia(new_state: dict):
         return
 
     _daily_flags["bom_dia_executado_hoje"] = True
-    await _alexa_speak("Bom dia! Tudo bem? Como foi sua noite?")
-    await asyncio.sleep(8)
-    await _call_ha("alexa_devices", "send_text_command", {
-        "device_id": ALEXA_TAIANE_DEVICE_ID,
-        "text_command": "me conte as notícias",
-    })
-    await asyncio.sleep(3)
-    await _call_ha("media_player", "volume_set", {
-        "entity_id": ALEXA_TAIANE_PLAYER,
-        "volume_level": 0.05,
-    })
+    await _announce("Bom dia! Tudo bem? Como foi sua noite?")
 
 
 # ==========================================================
@@ -208,7 +192,7 @@ async def _rotina_conversa_taiane(new_state: dict):
         return
 
     _daily_flags["conversa_taiane_executada_hoje"] = True
-    await _alexa_speak("Oi Taiane! Como foi seu dia? Aconteceu algo especial?")
+    await _announce("Oi Taiane! Como foi seu dia? Aconteceu algo especial?")
 
 
 # ==========================================================
@@ -239,6 +223,9 @@ async def _placa_abre_portao(new_state: dict):
 # ==========================================================
 # 8. chegada_por_reconhecimento_facial (for 5s)
 # ==========================================================
+# Mensagem "X chegou em casa" desativada a pedido do usuário 2026-08-16
+# — luz da cozinha continua acendendo na chegada, só o aviso por
+# WhatsApp foi tirado.
 
 async def _chegada_reconhecimento_facial(new_state: dict):
     if _in_cooldown("reconhecimento_facial"):
@@ -246,7 +233,6 @@ async def _chegada_reconhecimento_facial(new_state: dict):
 
     _start_cooldown("reconhecimento_facial", 15 * 60)
     await _call_device("switch", "turn_on", "switch.lampada_cozinha_switch_1")
-    await _alexa_speak(f"{new_state.get('state')} chegou em casa.")
 
 
 # ==========================================================

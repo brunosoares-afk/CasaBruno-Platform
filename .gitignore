@@ -72,3 +72,10 @@ ai/memory/*
 # Dados
 backend/data/*
 !backend/data/.gitkeep
+
+# Uploads e áudio gerado em runtime (dado de instância, não código)
+backend/uploads/
+backend/tts_audio/
+
+# Credenciais de sessão Amazon (access/refresh token, cookies, chave privada do device)
+alexa-bridge/login_data.json

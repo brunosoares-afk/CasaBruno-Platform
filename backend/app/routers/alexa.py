@@ -10,14 +10,16 @@ from app.services import tts_service
 from app.services.command_parser import command_parser
 from app.services.intent_engine import intent_engine
 from app.services.alexa_signature import verify_alexa_request
-from app.core.homeassistant.client import ha_client
+from app.services import alexa_service
 
 router = APIRouter(prefix="/alexa", tags=["Alexa"])
 logger = logging.getLogger(__name__)
 
 # Único Echo da casa por enquanto. Se mais dispositivos forem
-# cadastrados, isso precisa vir do próprio request da Alexa.
-ALEXA_NOTIFY_ENTITY = "notify.alexa_taiane_speak"
+# cadastrados, isso precisa vir do próprio request da Alexa. Fala direto
+# pelo alexa-bridge (Fase 8 da remoção do HA) em vez de notify.send_message
+# via HA — ver [[casa-bruno-voice-piper-migration-2026-08-16]].
+ALEXA_NOTIFY_ENTITY = "media_player.alexa_taiane"
 
 # Este endpoint fica exposto na internet e alguns intents chegam a
 # acionar dispositivos reais (portão, luz, ar). Além da assinatura
@@ -83,14 +85,7 @@ async def _answer_async(consulta: str):
         )
         message = result.get("message", "Não consegui pensar em uma resposta.")
 
-        ha_client.call_service(
-            "notify",
-            "send_message",
-            {
-                "entity_id": ALEXA_NOTIFY_ENTITY,
-                "message": message
-            }
-        )
+        alexa_service.speak(ALEXA_NOTIFY_ENTITY, message)
     except Exception:
         logger.exception("Falha ao responder pergunta assíncrona da Alexa")
 

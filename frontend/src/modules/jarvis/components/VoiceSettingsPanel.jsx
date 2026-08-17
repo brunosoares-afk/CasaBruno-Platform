@@ -9,14 +9,14 @@ import {
 } from "@mui/material";
 import { speakText } from "../services/fredApi";
 
-// Vozes neurais pt-BR da Azure via HA Cloud (Nabu Casa) — trocado do
-// Piper local, que soava robótico demais (ver memória
-// casa-bruno-custom-frontend-dashboard).
+// Vozes Piper pt-BR locais (container cbos-piper) — trocado da Azure/HA
+// Cloud em 2026-08-16 para tirar a dependência do HA (ver memória
+// casa-bruno-voice-piper-migration-2026-08-16).
 const VOICES = [
-    { value: "AntonioNeural", label: "Antônio (padrão)" },
-    { value: "DonatoNeural", label: "Donato" },
-    { value: "FranciscaNeural", label: "Francisca" },
-    { value: "BrendaNeural", label: "Brenda" },
+    { value: "pt_BR-faber-medium", label: "Faber (padrão)" },
+    { value: "pt_BR-jeff-medium", label: "Jeff" },
+    { value: "pt_BR-cadu-medium", label: "Cadu" },
+    { value: "pt_BR-edresson-low", label: "Edresson" },
 ];
 
 export default function VoiceSettingsPanel({ open, voice, onVoiceChange }) {

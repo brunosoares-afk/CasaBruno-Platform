@@ -108,6 +108,25 @@ class Settings:
     )
 
     # =====================================================
+    # CÂMERA PTZ ICSEE (DVR-IP/Sofia)
+    # =====================================================
+
+    DVRIP_CAMERA_ICSEE_FRENTE_HOST = os.getenv(
+        "DVRIP_CAMERA_ICSEE_FRENTE_HOST",
+        ""
+    )
+
+    DVRIP_CAMERA_ICSEE_FRENTE_USER = os.getenv(
+        "DVRIP_CAMERA_ICSEE_FRENTE_USER",
+        ""
+    )
+
+    DVRIP_CAMERA_ICSEE_FRENTE_PASSWORD = os.getenv(
+        "DVRIP_CAMERA_ICSEE_FRENTE_PASSWORD",
+        ""
+    )
+
+    # =====================================================
     # DOCKER
     # =====================================================
 

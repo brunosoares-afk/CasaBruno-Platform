@@ -4,7 +4,7 @@ import VideocamIcon from "@mui/icons-material/Videocam";
 
 import { useWeather } from "../../../hooks/useWeather";
 import { useActivity } from "../../../hooks/useActivity";
-import { useHomeAssistantAreas } from "../../../modules/jarvis/services/haApi";
+import { useHomeAssistantAreas, useHomeAssistantScenes } from "../../../modules/jarvis/services/haApi";
 
 import WeatherCard from "../../../components/dashboard/WeatherCard";
 import SwitchCard from "../../../components/dashboard/SwitchCard";
@@ -24,15 +24,9 @@ const DOMINIOS_RELEVANTES = [
   "media_player", "binary_sensor", "lock", "vacuum",
 ];
 
-// Cenas de verdade da casa (scripts.yaml, prefixo "cena_") — antes essa
-// seção era 1 tile hardcoded pro projetor; agora pega toda cena real
-// direto do estado ao vivo (byId), sem lista fixa que fica desatualizada
-// toda vez que uma cena nova é criada em scripts.yaml.
-const isSceneEntity = (id) => id.startsWith("script.cena_") || id.startsWith("scene.");
-
 const PERSON_ENTITIES = ["person.casa_inteligente", "person.taiane", "person.teste_casa"];
 const SCENE_ENTITY = "scene.unitv_projetor";
-const MEDIA_PLAYER_ENTITIES = ["media_player.alexa_taiane", "media_player.bruno_s_n65b"];
+const MEDIA_PLAYER_ENTITIES = ["media_player.bruno_s_n65b"];
 
 const PERSON_STATE_LABEL = {
   home: "Em casa",
@@ -40,31 +34,31 @@ const PERSON_STATE_LABEL = {
   unknown: "Desconhecido",
 };
 
-export default function InicioView({ byId, activateScene, playPause }) {
+export default function InicioView({ byId, activateScene, playPause, mediaNext, mediaPrevious, setVolume }) {
 
   const { data: weatherData } = useWeather();
   const { data: activity } = useActivity(8);
   const { data: areas, isLoading: areasLoading } = useHomeAssistantAreas();
+  const { data: scenes } = useHomeAssistantScenes();
 
   const areasComDispositivos = (areas || [])
     .map((area) => ({
       ...area,
-      entities: area.entity_ids
-        .filter((id) => DOMINIOS_RELEVANTES.includes(id.split(".")[0]))
-        .map((entityId) => ({ entityId })),
+      entities: area.entities
+        .filter(({ entity_id }) => DOMINIOS_RELEVANTES.includes(entity_id.split(".")[0]))
+        .map(({ entity_id, label }) => ({ entityId: entity_id, label })),
     }))
     .filter((area) => area.entities.length > 0);
 
   const automationEntities = Object.keys(byId).filter((id) => id.startsWith("automation."));
   const automationsOn = automationEntities.filter((id) => byId[id]?.state === "on").length;
 
-  const cenaActions = Object.keys(byId)
-    .filter(isSceneEntity)
-    .map((id) => ({
-      label: byId[id]?.attributes?.friendly_name?.replace(/^Cena:\s*/i, "") || id,
-      domain: id.split(".")[0],
+  const cenaActions = (scenes || [])
+    .map(({ entity_id, label }) => ({
+      label,
+      domain: "script",
       service: "turn_on",
-      entityId: id,
+      entityId: entity_id,
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
@@ -89,6 +83,9 @@ export default function InicioView({ byId, activateScene, playPause }) {
               <MediaPlayerCard
                 entity={byId[id]}
                 onPlayPause={() => playPause(id)}
+                onNext={mediaNext ? () => mediaNext(id) : undefined}
+                onPrevious={mediaPrevious ? () => mediaPrevious(id) : undefined}
+                onVolumeChange={setVolume ? (level) => setVolume(id, level) : undefined}
               />
             </Box>
           ))}
@@ -179,6 +176,7 @@ export default function InicioView({ byId, activateScene, playPause }) {
                 isOn={p?.state === "home"}
                 stateLabel={p ? (PERSON_STATE_LABEL[p.state] || p.state) : "--"}
                 color="success"
+                lastChanged={p?.last_updated}
               />
             );
           })}
