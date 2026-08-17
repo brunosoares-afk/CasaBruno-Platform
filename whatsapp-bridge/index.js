@@ -29,6 +29,10 @@ const extraAllowed = (process.env.WHATSAPP_ALLOWED_JIDS || "")
   .filter(Boolean);
 
 const logger = pino({ level: "info" });
+// Nível mais alto só pro Baileys: em "info" ele despeja material de chave
+// do protocolo Signal (pendingPreKey, remoteIdentityKey) no log a cada
+// reconexão — nada secreto deveria acabar no journalctl.
+const baileysLogger = pino({ level: "warn" });
 
 let sock = null;
 let connectionState = { connected: false, hasQr: false };
@@ -58,7 +62,7 @@ async function extractIncoming(msg) {
       msg,
       "buffer",
       {},
-      { logger, reuploadRequest: sock.updateMediaMessage }
+      { logger: baileysLogger, reuploadRequest: sock.updateMediaMessage }
     );
     return {
       sender,
@@ -95,7 +99,7 @@ async function start() {
 
   sock = makeWASocket({
     auth: state,
-    logger,
+    logger: baileysLogger,
     printQRInTerminal: false,
   });
 
