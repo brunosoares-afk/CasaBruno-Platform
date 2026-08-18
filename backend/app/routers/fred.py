@@ -9,7 +9,7 @@ router = APIRouter(
     tags=["FRED"]
 )
 
-DEFAULT_FRED_CONFIG = {"wakeWords": ["jarvis", "fred"], "voice": "pm_alex"}
+DEFAULT_FRED_CONFIG = {"wakeWords": ["jarvis", "fred"], "voice": "pt_BR-cadu-medium"}
 
 
 # ======================================================

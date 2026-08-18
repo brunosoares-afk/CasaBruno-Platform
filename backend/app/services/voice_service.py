@@ -32,13 +32,18 @@ PIPER_HOST = "127.0.0.1"
 PIPER_PORT = 10200
 
 # Kokoro-82M (cbos-kokoro, porta 10300) — testado com Bruno em 2026-08-18,
-# soa melhor que o Piper mas é ~2.3x mais lento que tempo real nesta CPU
-# (sem AVX2/FMA, só 2 FPUs reais). Vozes "pm_"/"pf_" (português) vão pra
-# lá; o resto (pt_BR-*, vozes Piper) continua no Piper.
+# prosódia melhor que o Piper mas: (1) ~2.3x mais lento que tempo real
+# nesta CPU (sem AVX2/FMA, só 2 FPUs reais), e (2) a faixa "p"/pt-br do
+# Kokoro soa com sotaque de Portugal apesar do rótulo — confirmado que a
+# fonemização espeak-ng já usa pt-br corretamente, então é característica
+# do modelo/voz mesmo, não bug de config. Por isso não é o padrão: fica
+# disponível pra quem escolher manualmente (Configurações), mas o padrão
+# volta a ser o Piper (voz brasileira de verdade). Vozes "pm_"/"pf_" vão
+# pro Kokoro; o resto (pt_BR-*) continua no Piper.
 KOKORO_URL = "http://127.0.0.1:10300/synthesize"
 KOKORO_TIMEOUT = 90
 
-DEFAULT_TTS_VOICE = "pm_alex"
+DEFAULT_TTS_VOICE = "pt_BR-cadu-medium"
 
 
 def _is_kokoro_voice(voice: str) -> bool:

@@ -9,17 +9,18 @@ import {
 } from "@mui/material";
 import { speakText } from "../services/fredApi";
 
-// Kokoro (cbos-kokoro) soa melhor mas é ~2.3x mais lento que tempo real
-// nesta CPU — Piper (cbos-piper) continua disponível pra quem preferir
-// resposta mais rápida. Ver voice_service.py.
+// Kokoro (cbos-kokoro) tem prosódia melhor, mas: mais lento (~2.3x tempo
+// real nesta CPU) e a faixa em português sai com sotaque de Portugal
+// apesar do rótulo "pt-br" — por isso não é o padrão. Piper (cbos-piper)
+// é mais rápido e genuinamente brasileiro. Ver voice_service.py.
 const VOICES = [
-    { value: "pm_alex", label: "Alex — Kokoro (padrão)" },
-    { value: "pm_santa", label: "Santa — Kokoro" },
-    { value: "pf_dora", label: "Dora — Kokoro" },
-    { value: "pt_BR-cadu-medium", label: "Cadu — Piper (mais rápido)" },
+    { value: "pt_BR-cadu-medium", label: "Cadu — Piper (padrão)" },
     { value: "pt_BR-faber-medium", label: "Faber — Piper" },
     { value: "pt_BR-jeff-medium", label: "Jeff — Piper" },
     { value: "pt_BR-edresson-low", label: "Edresson — Piper" },
+    { value: "pm_alex", label: "Alex — Kokoro (sotaque PT)" },
+    { value: "pm_santa", label: "Santa — Kokoro (sotaque PT)" },
+    { value: "pf_dora", label: "Dora — Kokoro (sotaque PT)" },
 ];
 
 export default function VoiceSettingsPanel({ open, voice, onVoiceChange }) {
