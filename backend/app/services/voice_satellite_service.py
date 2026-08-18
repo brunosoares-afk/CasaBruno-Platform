@@ -75,7 +75,7 @@ async def run_voice_turn(pcm_bytes: bytes, fmt: AudioFormat) -> bytes:
 
     if not text:
         logger.info("Comando de voz vazio após a wake word (nada transcrito)")
-        return await voice_service.piper_tts(
+        return await voice_service.tts_dispatch(
             "Não entendi, pode repetir?", voice_service.DEFAULT_TTS_VOICE
         )
 
@@ -83,7 +83,7 @@ async def run_voice_turn(pcm_bytes: bytes, fmt: AudioFormat) -> bytes:
     result = await asyncio.to_thread(fred.ask, text, LLM_TIMEOUT, "voice", None)
     message = result.get("message") or "Não consegui pensar em uma resposta."
 
-    return await voice_service.piper_tts(message, voice_service.DEFAULT_TTS_VOICE)
+    return await voice_service.tts_dispatch(message, voice_service.DEFAULT_TTS_VOICE)
 
 
 class SatelliteHandler(AsyncEventHandler):

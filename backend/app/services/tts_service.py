@@ -10,11 +10,11 @@ from app.services import voice_service
 AUDIO_DIR = Path("/opt/CasaBruno-Platform/backend/tts_audio")
 PUBLIC_BASE_URL = "https://hda08fx9s7v.sn.mynetname.net/alexa/audio"
 
-# TTS via Piper local (container cbos-piper) — até 2026-08-16 usava o HA
-# Cloud (Nabu Casa, voz Antônio); trocado junto com voice_service.py na
-# mesma decisão (ver [[casa-bruno-ha-removal-phases-4-6]]), pra skill
-# Alexa não depender mais do HA pra falar de volta.
-TTS_VOICE = "pt_BR-faber-medium"
+# Fica deliberadamente no Piper (não no Kokoro/DEFAULT_TTS_VOICE) — a
+# Alexa derruba o skill se o webhook não responder em poucos segundos, e
+# o Kokoro nessa CPU é ~2x mais lento que tempo real (ver voice_service.py),
+# rápido demais pra arriscar aqui mesmo que soe pior.
+TTS_VOICE = "pt_BR-cadu-medium"
 
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 

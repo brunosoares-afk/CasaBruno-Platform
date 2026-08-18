@@ -23,7 +23,7 @@ if not logging.getLogger().handlers:
     # (o "handler de último recurso" do Python só mostra WARNING+).
     logging.basicConfig(level=logging.INFO)
 
-VOICE_TIMEOUT = 30
+VOICE_TIMEOUT = 90  # Kokoro (voz padrão desde 2026-08-18) é ~2.3x mais lento que tempo real nesta CPU
 LLM_TIMEOUT = 180  # Ollama nessa CPU (sem AVX) varia muito, 35-60s no normal, pode passar de 120s
 BRIDGE_URL = "http://127.0.0.1:8095"
 

@@ -9,14 +9,17 @@ import {
 } from "@mui/material";
 import { speakText } from "../services/fredApi";
 
-// Vozes Piper pt-BR locais (container cbos-piper) — trocado da Azure/HA
-// Cloud em 2026-08-16 para tirar a dependência do HA (ver memória
-// casa-bruno-voice-piper-migration-2026-08-16).
+// Kokoro (cbos-kokoro) soa melhor mas é ~2.3x mais lento que tempo real
+// nesta CPU — Piper (cbos-piper) continua disponível pra quem preferir
+// resposta mais rápida. Ver voice_service.py.
 const VOICES = [
-    { value: "pt_BR-cadu-medium", label: "Cadu (padrão)" },
-    { value: "pt_BR-faber-medium", label: "Faber" },
-    { value: "pt_BR-jeff-medium", label: "Jeff" },
-    { value: "pt_BR-edresson-low", label: "Edresson" },
+    { value: "pm_alex", label: "Alex — Kokoro (padrão)" },
+    { value: "pm_santa", label: "Santa — Kokoro" },
+    { value: "pf_dora", label: "Dora — Kokoro" },
+    { value: "pt_BR-cadu-medium", label: "Cadu — Piper (mais rápido)" },
+    { value: "pt_BR-faber-medium", label: "Faber — Piper" },
+    { value: "pt_BR-jeff-medium", label: "Jeff — Piper" },
+    { value: "pt_BR-edresson-low", label: "Edresson — Piper" },
 ];
 
 export default function VoiceSettingsPanel({ open, voice, onVoiceChange }) {

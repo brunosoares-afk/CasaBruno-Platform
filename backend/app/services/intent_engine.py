@@ -15,10 +15,13 @@ class IntentEngine:
 
     # Vozes Azure já disponíveis no voice_service.py/VoiceSettingsPanel.jsx
     # (ver [[casa-bruno-whatsapp-fred]]) — nome falado -> nome exato da voz.
-    # Nomes das vozes Piper instaladas (ver [[casa-bruno-voice-piper-migration-2026-08-16]])
-    # — antes disso apontava pras vozes Azure (AntonioNeural etc.), que não
+    # Nomes das vozes instaladas (Piper + Kokoro, ver voice_service.py) —
+    # antes disso apontava pras vozes Azure (AntonioNeural etc.), que não
     # existem mais desde a migração e deixavam esse comando quebrado sem avisar.
     VOICE_NAMES = {
+        "alex": "pm_alex",
+        "santa": "pm_santa",
+        "dora": "pf_dora",
         "cadu": "pt_BR-cadu-medium",
         "faber": "pt_BR-faber-medium",
         "edresson": "pt_BR-edresson-low",

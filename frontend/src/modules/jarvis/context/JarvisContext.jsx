@@ -13,7 +13,7 @@ export function JarvisProvider({ children }) {
     const [messages, setMessages] = useState([]);
     const [processing, setProcessing] = useState(null); // null | "thinking" | "speaking"
     const [micEnabled, setMicEnabled] = useState(true);
-    const [voice, setVoiceState] = useState("pt_BR-cadu-medium");
+    const [voice, setVoiceState] = useState("pm_alex");
     const [wakeWords, setWakeWordsState] = useState(["jarvis", "fred"]);
 
     const audioRef = useRef(null);

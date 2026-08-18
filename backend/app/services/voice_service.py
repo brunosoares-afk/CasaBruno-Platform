@@ -1,3 +1,4 @@
+import asyncio
 import io
 import shutil
 import subprocess
@@ -5,6 +6,7 @@ import tempfile
 import wave
 from pathlib import Path
 
+import requests
 from wyoming.asr import Transcribe, Transcript
 from wyoming.audio import AudioChunk, AudioStart, AudioStop, wav_to_chunks
 from wyoming.client import AsyncTcpClient
@@ -28,7 +30,19 @@ WHISPER_PORT = 10301
 # qualidade por independência — decisão do usuário, não peso técnico.
 PIPER_HOST = "127.0.0.1"
 PIPER_PORT = 10200
-DEFAULT_TTS_VOICE = "pt_BR-cadu-medium"
+
+# Kokoro-82M (cbos-kokoro, porta 10300) — testado com Bruno em 2026-08-18,
+# soa melhor que o Piper mas é ~2.3x mais lento que tempo real nesta CPU
+# (sem AVX2/FMA, só 2 FPUs reais). Vozes "pm_"/"pf_" (português) vão pra
+# lá; o resto (pt_BR-*, vozes Piper) continua no Piper.
+KOKORO_URL = "http://127.0.0.1:10300/synthesize"
+KOKORO_TIMEOUT = 90
+
+DEFAULT_TTS_VOICE = "pm_alex"
+
+
+def _is_kokoro_voice(voice: str) -> bool:
+    return voice.startswith(("pm_", "pf_"))
 
 
 def _run_ffmpeg(args: list) -> None:
@@ -108,10 +122,32 @@ async def piper_tts(text: str, voice: str) -> bytes:
     return buf.getvalue()
 
 
-async def synthesize(text: str, voice: str | None = None) -> bytes:
-    """Texto -> áudio ogg/opus (nota de voz do WhatsApp) via Piper local."""
+def _kokoro_tts_sync(text: str, voice: str) -> bytes:
+    resp = requests.post(
+        KOKORO_URL,
+        json={"text": text, "voice": voice},
+        timeout=KOKORO_TIMEOUT,
+    )
+    resp.raise_for_status()
+    return resp.content
 
-    wav_bytes = await piper_tts(text, voice or DEFAULT_TTS_VOICE)
+
+async def kokoro_tts(text: str, voice: str) -> bytes:
+    """Texto -> wav (bytes) via cbos-kokoro (Kokoro-82M, porta 10300)."""
+
+    return await asyncio.to_thread(_kokoro_tts_sync, text, voice)
+
+
+async def tts_dispatch(text: str, voice: str) -> bytes:
+    if _is_kokoro_voice(voice):
+        return await kokoro_tts(text, voice)
+    return await piper_tts(text, voice)
+
+
+async def synthesize(text: str, voice: str | None = None) -> bytes:
+    """Texto -> áudio ogg/opus (nota de voz do WhatsApp) via Piper/Kokoro local."""
+
+    wav_bytes = await tts_dispatch(text, voice or DEFAULT_TTS_VOICE)
 
     tmp_dir = Path(tempfile.mkdtemp())
     try:
@@ -131,6 +167,6 @@ async def synthesize(text: str, voice: str | None = None) -> bytes:
 
 
 async def synthesize_wav(text: str, voice: str | None = None) -> bytes:
-    """Texto -> áudio wav (tocável direto no navegador) via Piper local."""
+    """Texto -> áudio wav (tocável direto no navegador) via Piper/Kokoro local."""
 
-    return await piper_tts(text, voice or DEFAULT_TTS_VOICE)
+    return await tts_dispatch(text, voice or DEFAULT_TTS_VOICE)
