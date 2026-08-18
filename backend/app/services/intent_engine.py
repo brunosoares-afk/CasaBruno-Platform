@@ -155,6 +155,12 @@ class IntentEngine:
                 "context": "memory" if "memoria" in cmd or "memória" in cmd else "cpu",
             }
 
+        if self.contains_any(cmd, ["que horas", "que hora", "horas sao", "hora atual", "hora agora"]):
+            return {"type": "time_query", "context": "time"}
+
+        if self.contains_any(cmd, ["que dia e hoje", "que dia e", "data de hoje", "dia da semana"]):
+            return {"type": "time_query", "context": "date"}
+
         if self.contains_any(cmd, ["clima atual", "tempo agora", "previsao do tempo", "previsão do tempo", "clima", "previsao", "previsão"]):
             return {"type": "weather_query"}
 

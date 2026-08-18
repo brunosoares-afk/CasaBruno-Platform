@@ -356,6 +356,22 @@ class IntentHandlers:
 
         return f"{round(float(celsius))}°C"
 
+    _WEEKDAYS_PT = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"]
+    _MONTHS_PT = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
+
+    def time_query(self, intent):
+        # Sem isso, "que horas são" caía no llm_fallback e o modelo
+        # inventava um horário — ele nunca recebe o relógio real no
+        # prompt (ver app/services/llm_service.py:_build_context).
+        now = datetime.now(timezone.utc).astimezone()
+
+        if intent.get("context") == "date":
+            message = f"Hoje é {self._WEEKDAYS_PT[now.weekday()]}, {now.day} de {self._MONTHS_PT[now.month - 1]}."
+        else:
+            message = f"Agora são {now.hour}h{now.minute:02d}."
+
+        return {"success": True, "message": message}
+
     def weather_query(self, intent):
         try:
             weather = weather_service.get_current()

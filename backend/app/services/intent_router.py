@@ -85,6 +85,11 @@ class IntentRouter:
         )
 
         self.register(
+            "time_query",
+            handlers.time_query
+        )
+
+        self.register(
             "house_status",
             handlers.house_status
         )
