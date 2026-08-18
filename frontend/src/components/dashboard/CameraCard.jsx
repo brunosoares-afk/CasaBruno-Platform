@@ -61,20 +61,25 @@ export default function CameraCard({ entityId, name, refreshMs = 15000 }) {
             </Box>
 
             <Box
-                sx={{ aspectRatio: "16 / 9", bgcolor: "background.default", mt: 1, cursor: failed ? "default" : "pointer" }}
+                sx={{ position: "relative", aspectRatio: "16 / 9", bgcolor: "background.default", mt: 1, cursor: failed ? "default" : "pointer" }}
                 onClick={() => !failed && setExpanded(true)}
             >
 
-                {!failed ? (
-                    <Box
-                        component="img"
-                        src={src}
-                        onError={() => setFailed(true)}
-                        onLoad={() => setFailed(false)}
-                        sx={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    />
-                ) : (
-                    <Box sx={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 0.5 }}>
+                {/* <img> fica sempre montado, mesmo depois de falhar — é o
+                onLoad dele que detecta a recuperação (próximo snapshot do
+                intervalo). Escondendo em vez de desmontar, senão onError/
+                onLoad nunca mais disparam e "indisponível" fica permanente
+                mesmo com a câmera voltando a responder. */}
+                <Box
+                    component="img"
+                    src={src}
+                    onError={() => setFailed(true)}
+                    onLoad={() => setFailed(false)}
+                    sx={{ width: "100%", height: "100%", objectFit: "cover", display: failed ? "none" : "block" }}
+                />
+
+                {failed && (
+                    <Box sx={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 0.5 }}>
                         <VideocamOffIcon sx={{ color: "error.main", fontSize: 28 }} />
                         <Typography sx={{ fontSize: 12, color: "error.main", fontWeight: 600 }}>
                             Câmera indisponível
