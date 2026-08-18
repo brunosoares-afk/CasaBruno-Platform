@@ -28,7 +28,7 @@ WHISPER_PORT = 10301
 # qualidade por independência — decisão do usuário, não peso técnico.
 PIPER_HOST = "127.0.0.1"
 PIPER_PORT = 10200
-DEFAULT_TTS_VOICE = "pt_BR-faber-medium"
+DEFAULT_TTS_VOICE = "pt_BR-cadu-medium"
 
 
 def _run_ffmpeg(args: list) -> None:

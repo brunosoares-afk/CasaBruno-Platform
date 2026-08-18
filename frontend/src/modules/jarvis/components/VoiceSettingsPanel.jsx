@@ -13,9 +13,9 @@ import { speakText } from "../services/fredApi";
 // Cloud em 2026-08-16 para tirar a dependência do HA (ver memória
 // casa-bruno-voice-piper-migration-2026-08-16).
 const VOICES = [
-    { value: "pt_BR-faber-medium", label: "Faber (padrão)" },
+    { value: "pt_BR-cadu-medium", label: "Cadu (padrão)" },
+    { value: "pt_BR-faber-medium", label: "Faber" },
     { value: "pt_BR-jeff-medium", label: "Jeff" },
-    { value: "pt_BR-cadu-medium", label: "Cadu" },
     { value: "pt_BR-edresson-low", label: "Edresson" },
 ];
 
