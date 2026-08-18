@@ -17,11 +17,13 @@ export default function AutomationsCard({ title = "Atividades", color = "info" }
 
     const queryClient = useQueryClient();
 
-    const { data: automations = [] } = useQuery({
+    const { data: allAutomations = [] } = useQuery({
         queryKey: ["automations"],
         queryFn: fetchAutomations,
         refetchInterval: 15000,
     });
+
+    const automations = allAutomations.filter((a) => a.enabled);
 
     const { mutate: setEnabled, isPending } = useMutation({
         mutationFn: toggleAutomation,
