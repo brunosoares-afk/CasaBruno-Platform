@@ -1,11 +1,7 @@
 import asyncio
-import json
 import logging
 from datetime import datetime, timezone
 
-import websockets
-
-from app.core.homeassistant.client import ha_client
 from app.services import detection_service, presence_service, tuya_service
 
 logger = logging.getLogger("ha_websocket_service")
@@ -13,16 +9,13 @@ logger.setLevel(logging.INFO)
 if not logging.getLogger().handlers:
     logging.basicConfig(level=logging.INFO)
 
-RECONNECT_DELAY_S = 5
-MAX_RECONNECT_DELAY_S = 120
 DETECTION_TICK_S = 5
 TUYA_TICK_S = 5
 PRESENCE_TICK_S = 20
 
-# Esses entity_id passam a ser lidos só pelo _tuya_loop (polling local direto
-# nos dispositivos) — o HA também tem a integração Tuya Cloud rodando pra
-# eles, então o _relay_loop ignora os eventos state_changed que chegam do HA
-# pra esses IDs, senão os dois ficariam brigando pra escrever o mesmo estado.
+# Esses entity_id são lidos só pelo _tuya_loop (polling local direto nos
+# dispositivos) — mantido separado do que a HA expunha via Tuya Cloud
+# pra não haver dois escritores do mesmo estado.
 TUYA_MANAGED_ENTITY_IDS = tuya_service.MANAGED_ENTITY_IDS
 
 # Mesma ideia, pra presença de rede (leases do MikroTik) em vez do app
@@ -76,114 +69,6 @@ async def _broadcast(message: dict) -> None:
             dead.append(client)
     for client in dead:
         _clients.discard(client)
-
-
-def _ws_url() -> str:
-    protocol = "wss" if ha_client.ssl else "ws"
-    return f"{protocol}://{ha_client.host}:{ha_client.port}/api/websocket"
-
-
-async def _load_initial_snapshot() -> None:
-    try:
-        states = await asyncio.to_thread(ha_client.states)
-
-        # Preserva os valores sintéticos (Tuya/presença) que já estavam no
-        # snapshot em vez de limpar tudo — sem isso, toda reconexão do
-        # relay (comum, ver RECONNECT_DELAY_S) reintroduzia por um instante
-        # o valor cru da HA pra esses entity_id (ex: person.taiane sempre
-        # "unknown" na HA de verdade, nunca teve tracker configurado lá)
-        # até o próximo tick do loop correspondente corrigir — pra Tuya
-        # (5s) passava despercebido, pra presença (20s) já dava pra ver
-        # "Desconhecido" na tela. Reproduzido ao vivo 2026-08-16.
-        managed = TUYA_MANAGED_ENTITY_IDS | PRESENCE_MANAGED_ENTITY_IDS
-        preserved = {k: v for k, v in _snapshot_by_id.items() if k in managed}
-
-        _snapshot_by_id.clear()
-        for entity in states:
-            if entity["entity_id"] not in managed:
-                _snapshot_by_id[entity["entity_id"]] = entity
-        _snapshot_by_id.update(preserved)
-
-        logger.info("Snapshot inicial carregado: %d entidades", len(_snapshot_by_id))
-    except Exception as exc:
-        logger.warning("Falha ao carregar snapshot inicial do HA: %s", exc)
-
-
-async def _relay_loop() -> None:
-    delay = RECONNECT_DELAY_S
-    while True:
-        try:
-            await _load_initial_snapshot()
-            await _broadcast({"type": "snapshot", "states": get_snapshot()})
-
-            async with websockets.connect(_ws_url(), open_timeout=10) as ws:
-
-                first = json.loads(await ws.recv())
-                if first.get("type") != "auth_required":
-                    raise RuntimeError(f"Handshake inesperado do HA: {first}")
-
-                await ws.send(json.dumps({"type": "auth", "access_token": ha_client.token}))
-                auth_result = json.loads(await ws.recv())
-                if auth_result.get("type") != "auth_ok":
-                    raise RuntimeError(f"Falha de autenticação no WS do HA: {auth_result}")
-
-                await ws.send(json.dumps({
-                    "id": 1,
-                    "type": "subscribe_events",
-                    "event_type": "state_changed",
-                }))
-                ack = json.loads(await ws.recv())
-                if not ack.get("success", True):
-                    raise RuntimeError(f"Falha ao assinar state_changed: {ack}")
-
-                logger.info("Conectado ao WebSocket do HA, ouvindo state_changed")
-                delay = RECONNECT_DELAY_S
-
-                async for raw in ws:
-                    msg = json.loads(raw)
-                    if msg.get("type") != "event":
-                        continue
-
-                    data = msg.get("event", {}).get("data", {})
-                    new_state = data.get("new_state")
-                    entity_id = data.get("entity_id")
-
-                    if not entity_id:
-                        continue
-
-                    if entity_id in TUYA_MANAGED_ENTITY_IDS:
-                        # Fonte da verdade pra esses IDs é o _tuya_loop (polling
-                        # local), não o HA (que também escuta a Tuya Cloud).
-                        continue
-
-                    if entity_id in PRESENCE_MANAGED_ENTITY_IDS:
-                        # Fonte da verdade agora é o _presence_loop (leases do
-                        # MikroTik), não o app companion da HA (mobile_app).
-                        continue
-
-                    if new_state is None:
-                        _snapshot_by_id.pop(entity_id, None)
-                    else:
-                        _snapshot_by_id[entity_id] = new_state
-
-                    await _broadcast({
-                        "type": "state_changed",
-                        "entity_id": entity_id,
-                        "new_state": new_state,
-                    })
-
-        except Exception as exc:
-            # HA Core está desligado de propósito desde 2026-08-16 (migração
-            # em andamento) — logger.exception() aqui gerava um traceback
-            # completo a cada 5s (>1000/h) só de "connection refused",
-            # enterrando erros reais no log. Backoff exponencial + uma linha
-            # concisa em vez de stack trace.
-            logger.warning(
-                "Conexão com o WS do HA caiu (%s), tentando de novo em %ds",
-                exc, delay,
-            )
-            await asyncio.sleep(delay)
-            delay = min(delay * 2, MAX_RECONNECT_DELAY_S)
 
 
 def _now_iso() -> str:
@@ -382,7 +267,6 @@ async def _presence_loop() -> None:
 
 
 def start_ha_websocket_relay():
-    asyncio.create_task(_relay_loop())
     asyncio.create_task(_detection_loop())
     asyncio.create_task(_tuya_loop())
     asyncio.create_task(_presence_loop())

@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from app.core.homeassistant.client import ha_client
 from app.services import ha_websocket_service, homeassistant_service, notify_service
+from app.services.fred_memory import memory as fred_memory
 
 logger = logging.getLogger("automations_service")
 logger.setLevel(logging.INFO)
@@ -38,6 +39,72 @@ async def _run_tracked(coro):
 
 def get_automation_error_count() -> int:
     return _automation_errors["count"]
+
+
+# Liga/desliga por automação, pra tela Cenas do frontend — persistido via
+# fred_memory (mesmo motivo do scheduler_service: sobreviver a restart do
+# backend, ver [[casa-bruno-scheduler-duplicate-notify-2026-08-16]]).
+_ENABLED_KEY_PREFIX = "automation_enabled_"
+
+AUTOMATIONS = [
+    {
+        "key": "presenca_chegada_liga_luz",
+        "label": "Chegada em casa liga a luz",
+        "description": "Acende a lâmpada da cozinha quando alguém chega depois das 18h.",
+    },
+    {
+        "key": "seguranca_desconhecido",
+        "label": "Alerta de rosto desconhecido",
+        "description": "Avisa se a câmera reconhece um rosto desconhecido com a casa vazia.",
+    },
+    {
+        "key": "rotina_bom_dia",
+        "label": "Bom dia por reconhecimento facial",
+        "description": "Manda um 'bom dia' entre 6h e 8h quando reconhece alguém da família.",
+    },
+    {
+        "key": "rotina_conversa_taiane",
+        "label": "Puxar assunto com a Taiane",
+        "description": "Pergunta como foi o dia da Taiane quando ela é reconhecida.",
+    },
+    {
+        "key": "placa_abre_portao",
+        "label": "Placa OVI8D97 abre o portão",
+        "description": "Abre o portão e avisa quando a câmera Yoosee reconhece a placa alvo.",
+    },
+    {
+        "key": "chegada_reconhecimento_facial",
+        "label": "Luz da cozinha por reconhecimento facial",
+        "description": "Acende a lâmpada da cozinha quando reconhece um rosto da família.",
+    },
+    {
+        "key": "btv13_perdeu_adb",
+        "label": "Alerta BTV13 sem ADB",
+        "description": "Avisa quando a BTV13 perde a conexão de depuração por 2 minutos.",
+    },
+    {
+        "key": "batimento_elevado",
+        "label": "Alerta de batimento cardíaco elevado",
+        "description": "Avisa se o relógio registrar mais de 120bpm por 20s.",
+    },
+]
+
+_AUTOMATION_KEYS = {a["key"] for a in AUTOMATIONS}
+
+
+def _is_enabled(key: str) -> bool:
+    value = fred_memory.recall(None, _ENABLED_KEY_PREFIX + key)
+    return True if value is None else bool(value)
+
+
+def set_enabled(key: str, enabled: bool) -> None:
+    if key not in _AUTOMATION_KEYS:
+        raise ValueError(f"Automação desconhecida: {key}")
+    fred_memory.remember(None, _ENABLED_KEY_PREFIX + key, bool(enabled))
+
+
+def list_automations() -> list[dict]:
+    return [{**a, "enabled": _is_enabled(a["key"])} for a in AUTOMATIONS]
 
 MOBILE_APP_SERVICE = "mobile_app_poco_x8"
 
@@ -143,6 +210,9 @@ async def _announce(message: str):
 # ==========================================================
 
 async def _presenca_chegada_liga_luz(entity_id: str, new_state: dict):
+    if not _is_enabled("presenca_chegada_liga_luz"):
+        return
+
     hour = datetime.now(timezone.utc).astimezone().hour
     if hour < 18:
         return
@@ -158,6 +228,9 @@ async def _presenca_chegada_liga_luz(entity_id: str, new_state: dict):
 # ==========================================================
 
 async def _seguranca_desconhecido_casa_vazia(new_state: dict):
+    if not _is_enabled("seguranca_desconhecido"):
+        return
+
     if any(_state_of(p) != "not_home" for p in PERSON_ENTITIES):
         return
 
@@ -175,6 +248,9 @@ async def _seguranca_desconhecido_casa_vazia(new_state: dict):
 # ==========================================================
 
 async def _rotina_bom_dia(new_state: dict):
+    if not _is_enabled("rotina_bom_dia"):
+        return
+
     hour = datetime.now(timezone.utc).astimezone().hour
     if not (6 <= hour < 8) or _daily_flags["bom_dia_executado_hoje"]:
         return
@@ -188,6 +264,9 @@ async def _rotina_bom_dia(new_state: dict):
 # ==========================================================
 
 async def _rotina_conversa_taiane(new_state: dict):
+    if not _is_enabled("rotina_conversa_taiane"):
+        return
+
     if _daily_flags["conversa_taiane_executada_hoje"]:
         return
 
@@ -200,6 +279,9 @@ async def _rotina_conversa_taiane(new_state: dict):
 # ==========================================================
 
 async def _placa_abre_portao(new_state: dict):
+    if not _is_enabled("placa_abre_portao"):
+        return
+
     if _in_cooldown("portao_placa"):
         return
 
@@ -228,6 +310,9 @@ async def _placa_abre_portao(new_state: dict):
 # WhatsApp foi tirado.
 
 async def _chegada_reconhecimento_facial(new_state: dict):
+    if not _is_enabled("chegada_reconhecimento_facial"):
+        return
+
     if _in_cooldown("reconhecimento_facial"):
         return
 
@@ -240,6 +325,9 @@ async def _chegada_reconhecimento_facial(new_state: dict):
 # ==========================================================
 
 async def _btv13_perdeu_adb(new_state: dict):
+    if not _is_enabled("btv13_perdeu_adb"):
+        return
+
     await _push(
         "📺 BTV13 perdeu a conexão ADB",
         "A porta 5555 caiu de novo (depuração de rede desligada). Precisa reativar manualmente na tela da TV — não tem como resolver remotamente.",
@@ -254,6 +342,9 @@ async def _btv13_perdeu_adb(new_state: dict):
 # ==========================================================
 
 async def _batimento_elevado(new_state: dict):
+    if not _is_enabled("batimento_elevado"):
+        return
+
     if _in_cooldown("batimento_alerta"):
         return
 

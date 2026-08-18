@@ -9,6 +9,7 @@ from app.services.ha_websocket_service import start_ha_websocket_relay
 from app.services.automations_service import start_automations
 from app.services.voice_satellite_service import start_voice_satellite_server
 from app.routers.scenes import router as scenes_router
+from app.routers.automations import router as automations_router
 from app.routers.fred import router as fred_router
 from app.routers.alexa import router as alexa_router
 from app.routers.whatsapp import router as whatsapp_router
@@ -84,6 +85,7 @@ app.include_router(mikrotik_router)
 app.include_router(docker_router)
 app.include_router(network_router)
 app.include_router(scenes_router)
+app.include_router(automations_router)
 app.include_router(fred_router)
 app.include_router(alexa_router)
 app.include_router(whatsapp_router)

@@ -160,6 +160,7 @@ def cena_modo_cinema():
 def cena_boa_noite():
     air_off()
     _lamp(False)
+    tv_power()
 
 
 def cena_bom_dia():
