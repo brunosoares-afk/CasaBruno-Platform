@@ -31,6 +31,16 @@ const glowAnim = keyframes`
     50% { filter: drop-shadow(0 0 9px currentColor); opacity: 1; }
 `;
 
+// Antes o "aceso" era só o ícone brilhando — pedido do usuário (2026-08-18):
+// uma lâmpada ligada de verdade clareia o ambiente ao redor dela, não só
+// ela mesma. Halo bem maior que o ícone, atrás dele, decorativo (sem
+// pointerEvents) pra não atrapalhar o clique. Só faz sentido pra luz —
+// aplicado só em marcadores tipo "state" com ícone Lightbulb.
+const roomGlowAnim = keyframes`
+    0%, 100% { opacity: .55; transform: translate(-50%, -50%) scale(1); }
+    50% { opacity: .85; transform: translate(-50%, -50%) scale(1.08); }
+`;
+
 const bounceAnim = keyframes`
     0%, 100% { transform: translate(-50%, -50%) scale(1); }
     50% { transform: translate(-50%, -50%) scale(1.6); }
@@ -84,6 +94,7 @@ function FloorPlanMarker({ marker, entity }) {
     }, [entity?.state, marker.type]);
 
     const isActive = marker.type === "state" ? isStateActive : pulsing;
+    const isRoomLight = marker.type === "state" && marker.icon === "Lightbulb";
 
     let animation = "none";
     if (isActive) {
@@ -96,27 +107,48 @@ function FloorPlanMarker({ marker, entity }) {
     }
 
     return (
-        <Tooltip title={marker.label || marker.entity_id}>
-            <Box
-                onClick={handleClick}
-                sx={{
-                    position: "absolute",
-                    left: `${marker.x_pct}%`,
-                    top: `${marker.y_pct}%`,
-                    transform: "translate(-50%, -50%)",
-                    color: isActive ? "warning.main" : "rgba(255,255,255,.4)",
-                    display: "flex",
-                    animation,
-                    pointerEvents: "auto",
-                    cursor: isPending ? "default" : "pointer",
-                    opacity: isPending ? 0.6 : 1,
-                    p: 1,
-                    "&:hover": { color: isPending ? undefined : "warning.light" },
-                }}
-            >
-                <Icon fontSize="small" />
-            </Box>
-        </Tooltip>
+        <>
+            {isRoomLight && isActive && (
+                <Box
+                    sx={{
+                        position: "absolute",
+                        left: `${marker.x_pct}%`,
+                        top: `${marker.y_pct}%`,
+                        width: "36%",
+                        aspectRatio: "1 / 1",
+                        transform: "translate(-50%, -50%)",
+                        borderRadius: "50%",
+                        background: (theme) =>
+                            `radial-gradient(circle, ${theme.palette.warning.light} 0%, ${theme.palette.warning.main}55 35%, transparent 72%)`,
+                        mixBlendMode: "screen",
+                        pointerEvents: "none",
+                        animation: `${roomGlowAnim} 3.2s ease-in-out infinite`,
+                    }}
+                />
+            )}
+
+            <Tooltip title={marker.label || marker.entity_id}>
+                <Box
+                    onClick={handleClick}
+                    sx={{
+                        position: "absolute",
+                        left: `${marker.x_pct}%`,
+                        top: `${marker.y_pct}%`,
+                        transform: "translate(-50%, -50%)",
+                        color: isActive ? "warning.main" : "rgba(255,255,255,.4)",
+                        display: "flex",
+                        animation,
+                        pointerEvents: "auto",
+                        cursor: isPending ? "default" : "pointer",
+                        opacity: isPending ? 0.6 : 1,
+                        p: 1,
+                        "&:hover": { color: isPending ? undefined : "warning.light" },
+                    }}
+                >
+                    <Icon fontSize="small" />
+                </Box>
+            </Tooltip>
+        </>
     );
 }
 
