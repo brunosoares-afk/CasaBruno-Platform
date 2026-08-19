@@ -217,6 +217,16 @@ async def _presenca_chegada_liga_luz(entity_id: str, new_state: dict):
     if hour < 18:
         return
 
+    # Cooldown adicionado 2026-08-19 — o presence_service só enxerga o
+    # MikroTik RB750, e o celular da Taiane (rede "Sogra") troca de
+    # roteador dentro de casa; cada troca aparecia aqui como um
+    # not_home->home de verdade e reacendia a luz sem parar. Mesmo
+    # cooldown do reconhecimento facial (15min), ver
+    # [[casa-bruno-kitchen-light-loop-2026-08-19]].
+    if _in_cooldown("presenca_chegada_luz"):
+        return
+    _start_cooldown("presenca_chegada_luz", 15 * 60)
+
     await _call_device("switch", "turn_on", "switch.lampada_cozinha_switch_1")
     # Mensagem de boas-vindas desativada a pedido do usuário 2026-08-16 —
     # luz continua acendendo, só o aviso por WhatsApp foi tirado (mesma
