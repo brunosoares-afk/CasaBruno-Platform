@@ -42,10 +42,18 @@ def _device(device_key: str) -> tinytuya.OutletDevice:
 def get_status(device_key: str) -> bool | None:
     try:
         result = _device(device_key).status()
-        return bool(result["dps"]["1"])
     except Exception:
-        logger.exception("Falha ao ler status do Tuya local: %s", device_key)
+        logger.warning("Falha de conexão ao ler status do Tuya local: %s", device_key, exc_info=False)
         return None
+
+    dps = result.get("dps") if isinstance(result, dict) else None
+    if not dps or "1" not in dps:
+        logger.warning(
+            "Resposta Tuya sem 'dps' pro dispositivo %s (resposta: %s)", device_key, result
+        )
+        return None
+
+    return bool(dps["1"])
 
 
 def turn_on(device_key: str) -> bool:
