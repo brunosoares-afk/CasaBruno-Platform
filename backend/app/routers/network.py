@@ -7,7 +7,9 @@ from collections import deque
 from fastapi import APIRouter, Depends
 
 from app.api.auth import require_gerencia_session
+from app.core.android.manager import android
 from app.core.config.config import config
+from app.core.mikrotik.client import mikrotik_client
 
 router = APIRouter(
     prefix="/network",
@@ -64,8 +66,7 @@ def arp_online(host, timeout=1):
         return False
 
 
-@router.get("/devices", dependencies=[Depends(require_gerencia_session)])
-def devices():
+def _router_statuses():
     cfg = config.get("network_devices", {}) or {}
     items = cfg.get("items", [])
     response = []
@@ -81,6 +82,35 @@ def devices():
             "latency_ms": latency
         })
     return response
+
+
+@router.get("/devices", dependencies=[Depends(require_gerencia_session)])
+def devices():
+    return _router_statuses()
+
+
+# As três rotas abaixo (routers/mikrotik-status/adb) são públicas de
+# propósito, igual ao /packet-loss acima — alimentam o card "Rede" da
+# página Início (sem login), não a Gerência. Só devolvem status
+# online/offline, nada sensível como MAC/IP de leases ou controle.
+@router.get("/routers")
+def routers():
+    return [{"name": d["name"], "online": d["online"]} for d in _router_statuses()]
+
+
+@router.get("/mikrotik-status")
+def mikrotik_status():
+    try:
+        identity = mikrotik_client.identity().get("name", "")
+        cpu_load = mikrotik_client.resource().get("cpu-load")
+        return {"connected": True, "identity": identity, "cpu_load": cpu_load}
+    except Exception:
+        return {"connected": False, "identity": None, "cpu_load": None}
+
+
+@router.get("/adb")
+def adb_status():
+    return [{"name": d["name"], "online": d["status"] == "online"} for d in android.list()]
 
 
 @router.get("/packet-loss")

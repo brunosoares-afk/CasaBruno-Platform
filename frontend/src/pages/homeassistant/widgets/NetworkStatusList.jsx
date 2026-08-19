@@ -1,16 +1,16 @@
 import { Card, Typography, Box, Chip } from "@mui/material";
 import RouterIcon from "@mui/icons-material/Router";
-import { useHomeAssistantStates, indexStates } from "../../../modules/jarvis/services/haApi";
 import SectionLabel from "../../../components/dashboard/SectionLabel";
 
 // Modelo diferente de propósito do EntitiesStatusCard (usado no resto do
 // app) — aqui são só leituras de status de rede/infra, sem nada pra
 // ligar/desligar, então faz mais sentido como lista tipo "painel de
 // monitoramento" (linha com nome + chip/valor) do que os cards com switch.
-export default function NetworkStatusList({ title, entities }) {
-
-    const { data: states } = useHomeAssistantStates();
-    const statesMap = indexStates(states);
+//
+// `items`: [{ label, online?, value?, loading? }] — vem de endpoints
+// próprios do backend (/network/*, /mikrotik/*), não mais do HA (ver
+// RedeView.jsx pro porquê).
+export default function NetworkStatusList({ title, items }) {
 
     return (
         <Card sx={{ p: 2 }}>
@@ -19,18 +19,12 @@ export default function NetworkStatusList({ title, entities }) {
             </SectionLabel>
 
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                {entities.map(({ entityId, label }) => {
-                    const entity = statesMap[entityId];
-                    const domain = entityId.split(".")[0];
-                    const isBinary = domain === "binary_sensor";
-                    const online = entity?.state === "on";
-                    const displayLabel = label || entity?.attributes?.friendly_name || entityId;
-                    const unit = entity?.attributes?.unit_of_measurement;
-                    const value = entity ? (unit ? `${entity.state} ${unit}` : entity.state) : "—";
+                {items.map(({ label, online, value, loading }) => {
+                    const isBinary = value === undefined;
 
                     return (
                         <Box
-                            key={entityId}
+                            key={label}
                             sx={{
                                 display: "flex",
                                 alignItems: "center",
@@ -45,22 +39,22 @@ export default function NetworkStatusList({ title, entities }) {
                             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
                                 <RouterIcon
                                     fontSize="small"
-                                    sx={{ color: !entity ? "text.disabled" : isBinary ? (online ? "success.main" : "text.disabled") : "info.main" }}
+                                    sx={{ color: loading ? "text.disabled" : isBinary ? (online ? "success.main" : "text.disabled") : "info.main" }}
                                 />
                                 <Typography variant="body2" sx={{ whiteSpace: "normal", wordBreak: "break-word" }}>
-                                    {displayLabel}
+                                    {label}
                                 </Typography>
                             </Box>
 
                             {isBinary ? (
                                 <Chip
                                     size="small"
-                                    label={online ? "Online" : "Offline"}
+                                    label={loading ? "..." : online ? "Online" : "Offline"}
                                     color={online ? "success" : "default"}
                                 />
                             ) : (
                                 <Typography variant="body2" fontWeight={600} color="info.main" sx={{ whiteSpace: "normal", wordBreak: "break-word" }}>
-                                    {value}
+                                    {loading ? "—" : value}
                                 </Typography>
                             )}
                         </Box>
