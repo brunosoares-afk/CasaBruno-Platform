@@ -22,8 +22,23 @@ ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".svg"}
 def _floor_plan_response():
     meta = config.get("floor_plan")
     if not meta or not (UPLOAD_DIR / meta["filename"]).exists():
-        return {"exists": False, "url": None}
-    return {"exists": True, "url": f"/uploads/{meta['filename']}?v={meta.get('updated_at', '')}"}
+        return {"exists": False, "url": None, "away_url": None}
+
+    version = meta.get("updated_at", "")
+    response = {"exists": True, "url": f"/uploads/{meta['filename']}?v={version}", "away_url": None}
+
+    # Variante "carro fora" — arquivo estático editado manualmente
+    # (mesmo nome + sufixo _no_car), pra planta mostrar a garagem vazia
+    # quando o POCO X8 do Bruno não está em casa. Se a planta for trocada
+    # por uma imagem nova, esse arquivo fica desatualizado até alguém
+    # gerar um novo (não é regenerado automaticamente no upload).
+    stem = Path(meta["filename"]).stem
+    suffix = Path(meta["filename"]).suffix
+    away_path = UPLOAD_DIR / f"{stem}_no_car{suffix}"
+    if away_path.exists():
+        response["away_url"] = f"/uploads/{away_path.name}?v={version}"
+
+    return response
 
 
 @router.get("/floor-plan/info")
@@ -78,6 +93,7 @@ class FloorPlanMarker(BaseModel):
     type: str = "state"
     active_states: list[str] = ["on"]
     anim_style: str = "glow"
+    hide_when_inactive: bool = False
 
 
 class FloorPlanMarkersUpdate(BaseModel):

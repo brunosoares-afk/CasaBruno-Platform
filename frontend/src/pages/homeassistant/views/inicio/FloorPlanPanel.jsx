@@ -96,6 +96,13 @@ function FloorPlanMarker({ marker, entity }) {
     const isActive = marker.type === "state" ? isStateActive : pulsing;
     const isRoomLight = marker.type === "state" && marker.icon === "Lightbulb";
 
+    // Alguns marcadores (ex: carro representando presença) não fazem
+    // sentido "apagados" quando inativos — o certo é sumir da planta de
+    // vez, pra mostrar visualmente que a pessoa/coisa não está em casa.
+    if (marker.type === "state" && marker.hide_when_inactive && !isStateActive) {
+        return null;
+    }
+
     let animation = "none";
     if (isActive) {
         if (marker.type === "state") {
@@ -169,6 +176,12 @@ export default function FloorPlanPanel({ byId = {} }) {
     }, []);
 
     if (info?.exists) {
+        // Carro desenhado na garagem da planta some quando o Bruno (POCO
+        // X8) não está em casa — troca pra uma variante da imagem sem o
+        // carro, gerada à parte (ver away_url em /api/uploads/floor-plan/info).
+        const brunoHome = byId["person.casa_inteligente"]?.state === "home";
+        const imageUrl = !brunoHome && info.away_url ? info.away_url : info.url;
+
         return (
             <Card
                 sx={{
@@ -179,7 +192,7 @@ export default function FloorPlanPanel({ byId = {} }) {
             >
                 <Box
                     component="img"
-                    src={`${api.defaults.baseURL}${info.url}`}
+                    src={`${api.defaults.baseURL}${imageUrl}`}
                     alt="Planta da casa"
                     sx={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
                 />

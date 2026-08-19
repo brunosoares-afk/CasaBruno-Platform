@@ -18,9 +18,9 @@ import { useHomeAssistantStates } from "../../hooks/useHomeAssistantStates";
 import { useFloorPlanMarkers, useSaveFloorPlanMarkers } from "../../hooks/useFloorPlanMarkers";
 import { MARKER_ICONS } from "../homeassistant/views/inicio/FloorPlanPanel";
 
-const MARKER_DOMAINS = ["light", "switch", "scene", "cover", "media_player"];
+const MARKER_DOMAINS = ["light", "switch", "scene", "cover", "media_player", "person"];
 
-const EMPTY_FORM = { entity_id: "", label: "", icon: "Lightbulb", type: "state" };
+const EMPTY_FORM = { entity_id: "", label: "", icon: "Lightbulb", type: "state", hide_when_inactive: false };
 
 function newMarkerId() {
     return `m${Date.now()}${Math.floor(Math.random() * 1000)}`;
@@ -62,7 +62,10 @@ export default function FloorPlanMarkersEditor({ floorPlanUrl }) {
     function handleContainerClick(e) {
         if (!placing || !form.entity_id) return;
         const { x_pct, y_pct } = positionFromEvent(e);
-        setMarkers((prev) => [...prev, { id: newMarkerId(), ...form, x_pct, y_pct, active_states: ["on"], anim_style: form.type === "state" ? "glow" : "bounce" }]);
+        // person.* não liga/desliga — o estado real é "home"/"not_home",
+        // não "on"/"off" como os outros domínios suportados aqui.
+        const activeStates = form.entity_id.startsWith("person.") ? ["home"] : ["on"];
+        setMarkers((prev) => [...prev, { id: newMarkerId(), ...form, x_pct, y_pct, active_states, anim_style: form.type === "state" ? "glow" : "bounce" }]);
         setPlacing(false);
         setForm(EMPTY_FORM);
     }
@@ -203,6 +206,19 @@ export default function FloorPlanMarkersEditor({ floorPlanUrl }) {
                 >
                     <MenuItem value="state">Fica aceso (luz, tomada)</MenuItem>
                     <MenuItem value="pulse">Pisca uma vez (portão, cena)</MenuItem>
+                </TextField>
+
+                <TextField
+                    select
+                    label="Quando inativo"
+                    size="small"
+                    value={form.hide_when_inactive ? "hide" : "dim"}
+                    onChange={(e) => setForm({ ...form, hide_when_inactive: e.target.value === "hide" })}
+                    sx={{ minWidth: 160 }}
+                    disabled={form.type !== "state"}
+                >
+                    <MenuItem value="dim">Fica apagado</MenuItem>
+                    <MenuItem value="hide">Some da planta</MenuItem>
                 </TextField>
 
                 <Button
