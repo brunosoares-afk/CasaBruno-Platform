@@ -2,6 +2,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
+from app.core.android.manager import android
 from app.services import detection_service, presence_service, tuya_service
 
 logger = logging.getLogger("ha_websocket_service")
@@ -12,6 +13,7 @@ if not logging.getLogger().handlers:
 DETECTION_TICK_S = 5
 TUYA_TICK_S = 5
 PRESENCE_TICK_S = 20
+BTV13_TICK_S = 15
 
 # Esses entity_id são lidos só pelo _tuya_loop (polling local direto nos
 # dispositivos) — mantido separado do que a HA expunha via Tuya Cloud
@@ -266,7 +268,50 @@ async def _presence_loop() -> None:
         await asyncio.sleep(PRESENCE_TICK_S)
 
 
+def _build_btv13_entity() -> dict[str, dict]:
+    """binary_sensor.btv13_adb nativo — antes só existia como entidade do
+    HA (checagem 'adb devices' rodando lá dentro), então o handler já
+    pronto em automations_service.py nunca era chamado de verdade (não
+    existe nenhum client de websocket real do HA nesse backend, só esses
+    3-4 loops nativos). Reaproveita o mesmo android.list() que já
+    alimenta /network/adb — mesmo shape de entidade que o HA expunha, pra
+    o handler existente funcionar sem mudar nada nele."""
+    now = _now_iso()
+    for device in android.list():
+        if device.get("id") == "btv13":
+            return {
+                "binary_sensor.btv13_adb": {
+                    "entity_id": "binary_sensor.btv13_adb",
+                    "state": "on" if device.get("status") == "online" else "off",
+                    "attributes": {"device_class": "connectivity", "friendly_name": "BTV13 ADB"},
+                    "last_updated": now,
+                }
+            }
+    return {}
+
+
+async def _btv13_loop() -> None:
+    while True:
+        try:
+            entities = await asyncio.to_thread(_build_btv13_entity)
+            for entity_id, new_state in entities.items():
+                old = _snapshot_by_id.get(entity_id)
+                _snapshot_by_id[entity_id] = new_state
+                changed = old is None or old.get("state") != new_state.get("state")
+                if changed:
+                    await _broadcast({
+                        "type": "state_changed",
+                        "entity_id": entity_id,
+                        "new_state": new_state,
+                    })
+        except Exception:
+            logger.exception("Falha no loop de ADB do BTV13")
+
+        await asyncio.sleep(BTV13_TICK_S)
+
+
 def start_ha_websocket_relay():
     asyncio.create_task(_detection_loop())
     asyncio.create_task(_tuya_loop())
     asyncio.create_task(_presence_loop())
+    asyncio.create_task(_btv13_loop())
