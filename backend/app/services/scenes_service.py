@@ -7,7 +7,7 @@ from app.core.android import commands
 from app.core.android.wol import send_wol
 from app.core.homeassistant.client import ha_client
 from app.integrations.tuya import infrared
-from app.services import alexa_service, homeassistant_service, philips_tv_service
+from app.services import alexa_service, homeassistant_service, philips_tv_service, tuya_service, weather_service
 from app.routers.scenes import _run_scene_unitv, _run_scene_desenho_heitor
 
 logger = logging.getLogger("scenes_service")
@@ -143,6 +143,38 @@ def _lamp(on: bool):
     return homeassistant_service.call_service("switch", "turn_on" if on else "turn_off", "switch.lampada_cozinha_switch_1")
 
 
+def gate_pulse() -> dict:
+    """Portão é um relé de pulso (INTERRUPTOR PULSO na Tuya) — um único
+    comando alterna o estado, não existe 'abrir' e 'fechar' separados
+    (mesmo padrão já usado pela automação de reconhecimento de placa,
+    ver automations_service._placa_abre_portao). Sem sensor de posição
+    real, então nunca chamamos isso "às cegas" pra tentar fechar o
+    portão automaticamente — só em cenas onde abrir é a intenção óbvia
+    (chegando de carro), igual a automação existente."""
+    ok = tuya_service.turn_on("portao")
+    return {"success": ok}
+
+
+_ALEXA_ANNOUNCE_ENTITIES = ["media_player.bruno_s_n65b", "media_player.alexa_taiane"]
+
+
+def _announce_house(text: str) -> bool:
+    """Anuncia em voz alta nos dois dispositivos Alexa da casa (TV da
+    sala + Echo da Taiane) — diferente de _announce()/notify_service,
+    que manda só por WhatsApp."""
+    return all(alexa_service.speak(entity_id, text) for entity_id in _ALEXA_ANNOUNCE_ENTITIES)
+
+
+def _weather_line() -> str | None:
+    try:
+        weather = weather_service.get_current()
+    except Exception:
+        return None
+    temp = weather.get("temperature")
+    line = f"Está {weather['label']}"
+    return line + (f", {round(temp)} graus." if temp is not None else ".")
+
+
 def _ok(result) -> bool:
     """Normaliza o retorno de um passo de cena pra bool. Sem isso, uma
     cena_* que não faz `return` explícito sempre virava {"success": True}
@@ -168,7 +200,12 @@ def cena_modo_cinema():
     r2 = projector_home()
     r3 = _lamp(False)
     r4 = _ha_switch("switch.bruno_s_n65b_do_not_disturb", True)
-    return {"success": _ok(r1) and _ok(r2) and _ok(r3) and _ok(r4)}
+    # Só liga (não define grau): air_temp() tem um bug conhecido e já
+    # documentado em infrared.py — a Tuya rejeita o payload de valor de
+    # temperatura pra essa categoria de controle remoto (code 30706),
+    # formato certo não documentado por eles.
+    r5 = air_on()
+    return {"success": _ok(r1) and _ok(r2) and _ok(r3) and _ok(r4) and _ok(r5)}
 
 
 def cena_boa_noite():
@@ -179,13 +216,27 @@ def cena_boa_noite():
 
 
 def cena_bom_dia():
-    return {"success": _ok(_lamp(True))}
+    r1 = _lamp(True)
+    saudacao = "Bom dia!"
+    clima = _weather_line()
+    if clima:
+        saudacao += f" {clima}"
+    r2 = _announce_house(saudacao)
+    return {"success": _ok(r1) and r2}
 
 
 def cena_saida_de_casa():
     r1 = air_off()
     r2 = _lamp(False)
-    return {"success": _ok(r1) and _ok(r2)}
+    r3 = _announce_house("Casa fechada, até mais!")
+    return {"success": _ok(r1) and _ok(r2) and r3}
+
+
+def cena_chegando_de_carro():
+    r1 = gate_pulse()
+    r2 = _lamp(True)
+    r3 = _announce_house("Bem-vindo de volta!")
+    return {"success": _ok(r1) and _ok(r2) and r3}
 
 
 def cena_conforto_ar():
@@ -267,6 +318,8 @@ _SCRIPT_FUNCS = {
     "cena_assistir_tv": cena_assistir_tv,
     "cena_modo_btv13": cena_modo_btv13,
     "cena_silencio_total": cena_silencio_total,
+    "cena_chegando_de_carro": cena_chegando_de_carro,
+    "cena_portao": gate_pulse,
 }
 
 SCRIPT_ENTITY_IDS = {f"script.{name}" for name in _SCRIPT_FUNCS}
@@ -287,6 +340,8 @@ CENA_LABELS = {
     "cena_conforto_ar": "Conforto (Ar)",
     "cena_nao_perturbe": "Não Perturbe",
     "cena_silencio_total": "Silêncio Total",
+    "cena_chegando_de_carro": "Chegando de Carro",
+    "cena_portao": "Portão",
 }
 
 

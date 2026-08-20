@@ -32,6 +32,8 @@ const OUTRAS_CENAS = [
     { label: "Conforto (Ar)", domain: "script", service: "turn_on", entityId: "script.cena_conforto_ar" },
     { label: "Não Perturbe", domain: "script", service: "turn_on", entityId: "script.cena_nao_perturbe" },
     { label: "Silêncio Total", domain: "script", service: "turn_on", entityId: "script.cena_silencio_total" },
+    { label: "Chegando de Carro", domain: "script", service: "turn_on", entityId: "script.cena_chegando_de_carro" },
+    { label: "Portão", domain: "script", service: "turn_on", entityId: "script.cena_portao" },
 ];
 
 export default function CenasView() {
