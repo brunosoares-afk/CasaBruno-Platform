@@ -1,6 +1,6 @@
 from app.services.device_registry import registry
 from app.services.fred_memory import memory
-from app.services import memory_service
+from app.services import memory_service, scenes_service
 
 
 class IntentEngine:
@@ -53,8 +53,15 @@ class IntentEngine:
         (["quero assistir filme", "vou assistir filme", "assistir filme"], ("turn_on", "script.cena_assistir_tv")),
         (["modo dormir", "boa noite"], ("turn_on", "script.cena_boa_noite")),
         (["vou sair"], ("turn_on", "script.cena_saida_de_casa")),
-        (["estou chegando", "ja estou chegando", "já estou chegando"], ("turn_on", "script.cena_bom_dia")),
+        # Antes caía em cena_bom_dia por engano (bug — "chegando" não tem
+        # nada a ver com "bom dia"). Agora que existe uma cena própria pra
+        # chegada de carro (portão + luz + anúncio), faz sentido de verdade.
+        (["estou chegando", "ja estou chegando", "já estou chegando", "chegando de carro", "cheguei de carro"], ("turn_on", "script.cena_chegando_de_carro")),
+        (["bom dia"], ("turn_on", "script.cena_bom_dia")),
         (["esta calor", "está calor"], ("turn_on", "script.cena_conforto_ar")),
+        (["nao perturbe", "não perturbe", "modo nao perturbe"], ("turn_on", "script.cena_nao_perturbe")),
+        (["silencio total", "silêncio total"], ("turn_on", "script.cena_silencio_total")),
+        (["fim de cinema", "acabou o filme", "acabou o cinema"], ("turn_on", "script.cena_fim_de_cinema")),
         (["ligar a tv philips", "liga a tv philips", "ligar tv da sala", "liga tv da sala"], ("turn_on", "script.fred_tv_philips_power")),
         (["desligar a tv philips", "desliga a tv philips", "desligar tv da sala", "desliga tv da sala"], ("turn_on", "script.fred_tv_philips_power_off")),
         (["aumentar volume da tv philips", "aumenta volume da tv philips", "aumentar volume da tv da sala"], ("turn_on", "script.fred_tv_philips_volume_up")),
@@ -536,6 +543,20 @@ class IntentEngine:
         try:
             candidates = registry.by_domain("scene") + registry.by_domain("script")
         except Exception:
+            candidates = []
+
+        # As cenas nem sempre têm uma entidade real registrada no HA (a
+        # execução é 100% local desde a Fase 3 — o registro do HA é só um
+        # resto que pode ficar desatualizado, ex: cena_chegando_de_carro
+        # não existia lá quando foi criada 2026-08-20). Sem isso, dizer o
+        # nome certinho de uma cena nova simplesmente não achava nada.
+        known_ids = {c.get("entity_id") for c in candidates}
+        for name, label in scenes_service.CENA_LABELS.items():
+            entity_id = f"script.{name}"
+            if entity_id not in known_ids:
+                candidates.append({"entity_id": entity_id, "attributes": {"friendly_name": label}})
+
+        if not candidates:
             return {"type": "device_not_found", "query": cmd}
 
         words = [
