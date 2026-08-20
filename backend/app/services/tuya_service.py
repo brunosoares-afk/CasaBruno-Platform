@@ -56,9 +56,23 @@ def get_status(device_key: str) -> bool | None:
     return bool(dps["1"])
 
 
+def _send_ok(result) -> bool:
+    """tinytuya não levanta exceção pra falhas de rede/protocolo (device
+    unreachable, timeout etc) — devolve um dict com 'Error' em vez disso.
+    Sem checar isso, turn_on/turn_off reportavam sucesso mesmo com o
+    dispositivo totalmente fora do ar (descoberto 2026-08-20 investigando
+    cenas que não faziam efeito nenhum mas sempre respondiam success)."""
+    if isinstance(result, dict) and result.get("Error"):
+        return False
+    return True
+
+
 def turn_on(device_key: str) -> bool:
     try:
-        _device(device_key).turn_on()
+        result = _device(device_key).turn_on()
+        if not _send_ok(result):
+            logger.warning("Tuya local não confirmou ligar %s: %s", device_key, result)
+            return False
         return True
     except Exception:
         logger.exception("Falha ao ligar Tuya local: %s", device_key)
@@ -67,7 +81,10 @@ def turn_on(device_key: str) -> bool:
 
 def turn_off(device_key: str) -> bool:
     try:
-        _device(device_key).turn_off()
+        result = _device(device_key).turn_off()
+        if not _send_ok(result):
+            logger.warning("Tuya local não confirmou desligar %s: %s", device_key, result)
+            return False
         return True
     except Exception:
         logger.exception("Falha ao desligar Tuya local: %s", device_key)

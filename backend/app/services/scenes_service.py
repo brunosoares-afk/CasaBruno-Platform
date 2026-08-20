@@ -131,17 +131,30 @@ _DND_SWITCH_TO_ENTITY = {
 def _ha_switch(entity_id: str, on: bool):
     media_entity = _DND_SWITCH_TO_ENTITY.get(entity_id)
     if media_entity:
-        alexa_service.set_dnd(media_entity, on)
-        return
-    ha_client.call_service("switch", "turn_on" if on else "turn_off", {"entity_id": entity_id})
+        return alexa_service.set_dnd(media_entity, on)
+    return ha_client.call_service("switch", "turn_on" if on else "turn_off", {"entity_id": entity_id})
 
 
 def _alexa_volume(level: float):
-    alexa_service.set_volume("media_player.alexa_taiane", level)
+    return alexa_service.set_volume("media_player.alexa_taiane", level)
 
 
 def _lamp(on: bool):
-    homeassistant_service.call_service("switch", "turn_on" if on else "turn_off", "switch.lampada_cozinha_switch_1")
+    return homeassistant_service.call_service("switch", "turn_on" if on else "turn_off", "switch.lampada_cozinha_switch_1")
+
+
+def _ok(result) -> bool:
+    """Normaliza o retorno de um passo de cena pra bool. Sem isso, uma
+    cena_* que não faz `return` explícito sempre virava {"success": True}
+    em scenes_service.run() (result=None cai no fallback), mascarando
+    qualquer falha real dos passos (Tuya local fora do ar, IR sem
+    assinatura na nuvem etc) — descoberto 2026-08-20 quando nenhuma cena
+    dava sinal de erro mesmo sem fazer efeito nenhum."""
+    if isinstance(result, dict):
+        return bool(result.get("success", True))
+    if isinstance(result, bool):
+        return result
+    return True
 
 
 # ==========================================================
@@ -150,61 +163,70 @@ def _lamp(on: bool):
 # ==========================================================
 
 def cena_modo_cinema():
-    projector_power()
+    r1 = projector_power()
     time.sleep(5)
-    projector_home()
-    _lamp(False)
-    _ha_switch("switch.bruno_s_n65b_do_not_disturb", True)
+    r2 = projector_home()
+    r3 = _lamp(False)
+    r4 = _ha_switch("switch.bruno_s_n65b_do_not_disturb", True)
+    return {"success": _ok(r1) and _ok(r2) and _ok(r3) and _ok(r4)}
 
 
 def cena_boa_noite():
-    air_off()
-    _lamp(False)
-    tv_power()
+    r1 = air_off()
+    r2 = _lamp(False)
+    r3 = tv_power()
+    return {"success": _ok(r1) and _ok(r2) and _ok(r3)}
 
 
 def cena_bom_dia():
-    _lamp(True)
+    return {"success": _ok(_lamp(True))}
 
 
 def cena_saida_de_casa():
-    air_off()
-    _lamp(False)
+    r1 = air_off()
+    r2 = _lamp(False)
+    return {"success": _ok(r1) and _ok(r2)}
 
 
 def cena_conforto_ar():
-    air_on()
+    r1 = air_on()
     time.sleep(2)
-    air_temp(23)
+    r2 = air_temp(23)
+    return {"success": _ok(r1) and _ok(r2)}
 
 
 def cena_fim_de_cinema():
-    projector_power()
-    _lamp(True)
-    _ha_switch("switch.bruno_s_n65b_do_not_disturb", False)
+    r1 = projector_power()
+    r2 = _lamp(True)
+    r3 = _ha_switch("switch.bruno_s_n65b_do_not_disturb", False)
+    return {"success": _ok(r1) and _ok(r2) and _ok(r3)}
 
 
 def cena_nao_perturbe():
-    _ha_switch("switch.alexa_taiane_do_not_disturb", True)
-    _ha_switch("switch.bruno_s_n65b_do_not_disturb", True)
+    r1 = _ha_switch("switch.alexa_taiane_do_not_disturb", True)
+    r2 = _ha_switch("switch.bruno_s_n65b_do_not_disturb", True)
+    return {"success": _ok(r1) and _ok(r2)}
 
 
 def cena_assistir_tv():
-    tv_power()
-    _ha_switch("switch.bruno_s_n65b_do_not_disturb", True)
+    r1 = tv_power()
+    r2 = _ha_switch("switch.bruno_s_n65b_do_not_disturb", True)
+    return {"success": _ok(r1) and _ok(r2)}
 
 
 def cena_modo_btv13():
-    tv_power()
-    btv13_power()
+    r1 = tv_power()
+    r2 = btv13_power()
     time.sleep(5)
-    btv13_home()
+    r3 = btv13_home()
+    return {"success": _ok(r1) and _ok(r2) and _ok(r3)}
 
 
 def cena_silencio_total():
-    _ha_switch("switch.alexa_taiane_do_not_disturb", True)
-    _ha_switch("switch.bruno_s_n65b_do_not_disturb", True)
-    _alexa_volume(0.05)
+    r1 = _ha_switch("switch.alexa_taiane_do_not_disturb", True)
+    r2 = _ha_switch("switch.bruno_s_n65b_do_not_disturb", True)
+    r3 = _alexa_volume(0.05)
+    return {"success": _ok(r1) and _ok(r2) and _ok(r3)}
 
 
 # ==========================================================
@@ -279,12 +301,21 @@ def is_managed(entity_id: str) -> bool:
     return entity_id in SCRIPT_ENTITY_IDS
 
 
+def _run_and_log(name, func):
+    try:
+        result = func()
+        if not _ok(result):
+            logger.warning("Cena %s rodou em background e falhou: %s", name, result)
+    except Exception:
+        logger.exception("Cena %s rodou em background e lançou exceção", name)
+
+
 def run(entity_id: str):
     name = entity_id.split(".", 1)[1]
     func = _SCRIPT_FUNCS[name]
 
     if name in _THREADED:
-        threading.Thread(target=func, daemon=True).start()
+        threading.Thread(target=_run_and_log, args=(name, func), daemon=True).start()
         return {"success": True, "async": True}
 
     try:
