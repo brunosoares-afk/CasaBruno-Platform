@@ -1,20 +1,12 @@
 import { Grid } from "@mui/material";
-import EntitiesStatusCard from "../widgets/EntitiesStatusCard";
 import ActionButtonGrid from "../widgets/ActionButtonGrid";
 
-// As 5 automações de reconhecimento facial/placa (chegada, bom dia,
-// conversa com Taiane, rosto desconhecido, placa OVI8D97) foram removidas
-// do HA em 2026-08-16 — já estavam mortas desde a Fase 1 da migração
-// (trigger era um sensor sintético que só existe no relay do nosso
-// backend, sensor.icsee_pessoa_reconhecida, nunca existiu de verdade no
-// HA Core) e a lógica real já rodava só em app/services/automations_service.py.
-// Ver [[casa-bruno-ha-removal-phases-4-6]].
-const AUTOMACOES = [
-    { entityId: "automation.presenca_chegada_em_casa_liga_a_luz", label: "Presença: Chegada em Casa Liga a Luz", showAttribute: "last_triggered" },
-    { entityId: "automation.btv13_perdeu_conexao_adb", label: "BTV13: Perdeu Conexão ADB", showAttribute: "last_triggered" },
-    { entityId: "automation.saude_batimento_cardiaco_elevado", label: "Saúde: Batimento Cardíaco Elevado", showAttribute: "last_triggered" },
-];
-
+// O card "Automações Ativas" que ficava aqui (EntitiesStatusCard sobre
+// automation.* do HA) foi removido 2026-08-19 — eram entidades mortas
+// desde o desligamento do HA Core (ver [[casa-bruno-ha-removal-phases-4-6]]),
+// por isso o toggle nunca funcionava de verdade. A lista real e com toggle
+// funcional (AutomationsCard, GET/POST /automations) mudou pra aba Cenas,
+// ao lado de "Atividades" — ver CenasView.jsx.
 const EXECUTAR_AGORA = [
     { label: "Modo Cinema", domain: "script", service: "turn_on", entityId: "script.cena_modo_cinema" },
     { label: "Fim de Cinema", domain: "script", service: "turn_on", entityId: "script.cena_fim_de_cinema" },
@@ -33,10 +25,6 @@ export default function AutomacoesView() {
 
     return (
         <Grid container spacing={2}>
-            <Grid size={{ xs: 12 }}>
-                <EntitiesStatusCard title="Automações Ativas" entities={AUTOMACOES} />
-            </Grid>
-
             <Grid size={{ xs: 12 }}>
                 <ActionButtonGrid title="Executar Agora" actions={EXECUTAR_AGORA} columns={3} />
             </Grid>

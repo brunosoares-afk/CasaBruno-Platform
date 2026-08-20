@@ -13,7 +13,7 @@ async function toggleAutomation({ key, enabled }) {
     return res.data;
 }
 
-export default function AutomationsCard({ title = "Atividades", color = "info" }) {
+export default function AutomationsCard({ title = "Atividades", color = "info", onlyEnabled = true }) {
 
     const queryClient = useQueryClient();
 
@@ -23,7 +23,7 @@ export default function AutomationsCard({ title = "Atividades", color = "info" }
         refetchInterval: 15000,
     });
 
-    const automations = allAutomations.filter((a) => a.enabled);
+    const automations = onlyEnabled ? allAutomations.filter((a) => a.enabled) : allAutomations;
 
     const { mutate: setEnabled, isPending } = useMutation({
         mutationFn: toggleAutomation,

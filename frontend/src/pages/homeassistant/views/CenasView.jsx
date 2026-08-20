@@ -40,6 +40,7 @@ export default function CenasView() {
             <NativeSceneButtons title="Cenas T&B Residencial" actions={CENAS} columns={3} />
             <ActionButtonGrid title="Outras Cenas" actions={OUTRAS_CENAS} columns={3} color="primary" />
             <AutomationsCard title="Atividades" />
+            <AutomationsCard title="Automações" onlyEnabled={false} />
         </Stack>
     );
 }
