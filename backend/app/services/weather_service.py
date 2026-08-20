@@ -14,13 +14,17 @@ WEATHER_CODE_LABEL = {
 }
 
 
+def _label(code) -> str:
+    return WEATHER_CODE_LABEL.get(code, "variável")
+
+
 def get_current() -> dict:
     resp = requests.get(
         "https://api.open-meteo.com/v1/forecast",
         {
             "latitude": LATITUDE,
             "longitude": LONGITUDE,
-            "current": "temperature_2m,weather_code",
+            "current": "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m",
             "timezone": "America/Sao_Paulo",
         },
         timeout=10,
@@ -30,5 +34,42 @@ def get_current() -> dict:
 
     return {
         "temperature": current.get("temperature_2m"),
-        "label": WEATHER_CODE_LABEL.get(current.get("weather_code"), "variável"),
+        "feels_like": current.get("apparent_temperature"),
+        "humidity": current.get("relative_humidity_2m"),
+        "wind_speed": current.get("wind_speed_10m"),
+        "label": _label(current.get("weather_code")),
     }
+
+
+def get_forecast(days: int = 3) -> list[dict]:
+    """Previsão diária (hoje + N-1 dias seguintes) — mesma fonte (Open-Meteo,
+    sem chave/autenticação), pra quem precisar de mais que o clima agora
+    (ex: core/homeassistant/weather.py, ou um futuro intent de 'previsão
+    de amanhã')."""
+    resp = requests.get(
+        "https://api.open-meteo.com/v1/forecast",
+        {
+            "latitude": LATITUDE,
+            "longitude": LONGITUDE,
+            "daily": "weather_code,temperature_2m_max,temperature_2m_min",
+            "timezone": "America/Sao_Paulo",
+            "forecast_days": days,
+        },
+        timeout=10,
+    )
+    resp.raise_for_status()
+    daily = resp.json().get("daily", {})
+    dates = daily.get("time", [])
+    codes = daily.get("weather_code", [])
+    highs = daily.get("temperature_2m_max", [])
+    lows = daily.get("temperature_2m_min", [])
+
+    return [
+        {
+            "date": dates[i],
+            "label": _label(codes[i] if i < len(codes) else None),
+            "temp_max": highs[i] if i < len(highs) else None,
+            "temp_min": lows[i] if i < len(lows) else None,
+        }
+        for i in range(len(dates))
+    ]

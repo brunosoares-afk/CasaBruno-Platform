@@ -383,7 +383,17 @@ class IntentHandlers:
 
         temp_str = self._format_temp(weather["temperature"], intent.get("person"))
         message = f"Está {weather['label']}"
-        message += f", {temp_str}." if temp_str else "."
+        message += f", {temp_str}" if temp_str else ""
+
+        # Só menciona sensação térmica quando faz diferença real (>=2°) —
+        # senão vira ruído repetindo o mesmo número duas vezes.
+        feels_like = weather.get("feels_like")
+        temperature = weather.get("temperature")
+        if feels_like is not None and temperature is not None and abs(feels_like - temperature) >= 2:
+            feels_str = self._format_temp(feels_like, intent.get("person"))
+            message += f", mas a sensação é de {feels_str}"
+
+        message += "."
 
         return {"success": True, "message": message}
 
