@@ -47,6 +47,33 @@ class ResponseBuilder:
             "success"
         ) is False:
 
+            # Sem "message" (ex: call_service devolvendo o dict cru de
+            # uma cena que falhou), o Fred ficava sem resposta nenhuma
+            # pro usuário — achado 2026-08-21 junto com o detalhe de
+            # erro por passo nas cenas (scenes_service._finish). Usa
+            # esse detalhe quando existe, em vez de só "não consegui".
+            if "message" not in result:
+
+                detail = None
+
+                inner = result.get("result")
+                if isinstance(inner, dict):
+                    detail = inner.get("error")
+
+                entity = (
+                    self.entity_name(result.get("entity_id"))
+                    if result.get("entity_id") else None
+                )
+
+                if detail and entity:
+                    text = f"Não consegui: {entity} — {detail}"
+                elif detail:
+                    text = f"Não consegui: {detail}"
+                else:
+                    text = "Não consegui executar o comando."
+
+                return {**result, "message": self.with_personality(text)}
+
             return result
 
 
@@ -313,6 +340,18 @@ class ResponseBuilder:
 
             pass
 
+
+        # Cenas (script.cena_*) não existem no snapshot nativo — só HA
+        # tinha o friendly_name delas, e HA não existe mais. CENA_LABELS
+        # é a mesma lista estática que já alimenta a tela de Cenas.
+        if entity_id.startswith("script.cena_"):
+            try:
+                from app.services.scenes_service import CENA_LABELS
+                label = CENA_LABELS.get(entity_id.split(".", 1)[1])
+                if label:
+                    return f"Cena {label}"
+            except Exception:
+                pass
 
 
         return entity_id

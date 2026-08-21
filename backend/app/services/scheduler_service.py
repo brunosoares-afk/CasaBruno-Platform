@@ -20,6 +20,8 @@ if not logging.getLogger().handlers:
 TICK_SECONDS = 60
 WEATHER_HOUR = 8
 AGENDA_HOUR = 21
+SUMMARY_WEEKDAY = 6  # domingo (Monday=0 .. Sunday=6)
+SUMMARY_HOUR = 20
 
 # "Já rodou hoje" por job — persistido via fred_memory (arquivo em disco,
 # sobrevive a restart) em vez de só um dict em memória. Antes disso, cada
@@ -40,6 +42,19 @@ def _mark_job_ran(job: str) -> None:
     fred_memory.remember(None, _LAST_RUN_KEY_PREFIX + job, _today())
 
 
+def _current_week_key() -> str:
+    iso = datetime.now(timezone.utc).astimezone().isocalendar()
+    return f"{iso[0]}-W{iso[1]:02d}"
+
+
+def _job_already_ran_this_week(job: str) -> bool:
+    return fred_memory.recall(None, _LAST_RUN_KEY_PREFIX + job) == _current_week_key()
+
+
+def _mark_job_ran_this_week(job: str) -> None:
+    fred_memory.remember(None, _LAST_RUN_KEY_PREFIX + job, _current_week_key())
+
+
 # A mensagem de "agenda não conectada" só deve ser mandada uma vez na
 # vida, não repetir todo dia — controlada à parte do _last_run diário.
 _agenda_not_connected_notified = False
@@ -51,6 +66,10 @@ def _today() -> str:
 
 def _now_hour() -> int:
     return datetime.now(timezone.utc).astimezone().hour
+
+
+def _now_weekday() -> int:
+    return datetime.now(timezone.utc).astimezone().weekday()
 
 
 async def _weather_job():
@@ -154,12 +173,41 @@ async def _reminders_job():
         logger.exception("Falha no job de lembretes")
 
 
+CHANNEL_LABEL = {"voice": "voz", "whatsapp": "WhatsApp", "web": "painel"}
+
+
+async def _weekly_summary_job():
+    if _now_weekday() != SUMMARY_WEEKDAY or _now_hour() < SUMMARY_HOUR:
+        return
+    if _job_already_ran_this_week("weekly_summary"):
+        return
+    _mark_job_ran_this_week("weekly_summary")
+
+    try:
+        stats = await asyncio.to_thread(memory_service.get_activity_stats, 24 * 7)
+        total = stats["total"]
+
+        if total == 0:
+            await notify_service.notify("Resumo da semana: nenhum comando pra mim essa semana.")
+            return
+
+        by_channel = ", ".join(
+            f"{count} por {CHANNEL_LABEL.get(channel, channel)}"
+            for channel, count in stats["by_channel"].items()
+        )
+        message = f"Resumo da semana: {total} comandos ({by_channel})."
+        await notify_service.notify(message)
+    except Exception:
+        logger.exception("Falha no job de resumo semanal")
+
+
 async def _scheduler_loop():
     while True:
         await _weather_job()
         await _agenda_job()
         await _lamp_job()
         await _reminders_job()
+        await _weekly_summary_job()
         await asyncio.sleep(TICK_SECONDS)
 
 

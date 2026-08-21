@@ -189,6 +189,35 @@ def _ok(result) -> bool:
     return True
 
 
+def _step_error(result) -> str | None:
+    """Extrai um motivo legível de falha de um passo, se houver — cobre
+    os 3 formatos que os passos já devolvem: dict com 'success' (nosso
+    próprio padrão), dict de erro cru da nuvem Tuya ('msg'/'code'), e
+    bool simples (Alexa/announce)."""
+    if isinstance(result, dict):
+        if result.get("success", True):
+            return None
+        return result.get("msg") or result.get("error") or "falhou sem detalhe"
+    if result is False:
+        return "falhou"
+    return None
+
+
+def _finish(steps: dict) -> dict:
+    """steps: {rótulo: resultado_do_passo}. Junta os erros reais (se
+    houver) numa mensagem legível — descoberto 2026-08-21 que "a cena
+    falhou" sozinho (só success/failure) não ajuda ninguém a saber o quê
+    especificamente não funcionou quando o Fred responde por voz/WhatsApp."""
+    errors = [
+        f"{label} ({error})"
+        for label, error in ((l, _step_error(r)) for l, r in steps.items())
+        if error
+    ]
+    if errors:
+        return {"success": False, "error": "; ".join(errors)}
+    return {"success": True}
+
+
 # ==========================================================
 # CENAS (cena_*) — mesma sequência de scripts.yaml, ações locais
 # chamadas em processo em vez de HA -> rest_command -> HTTP
@@ -205,14 +234,14 @@ def cena_modo_cinema():
     # temperatura pra essa categoria de controle remoto (code 30706),
     # formato certo não documentado por eles.
     r5 = air_on()
-    return {"success": _ok(r1) and _ok(r2) and _ok(r3) and _ok(r4) and _ok(r5)}
+    return _finish({"projetor": r1, "projetor home": r2, "luz": r3, "não perturbe": r4, "ar": r5})
 
 
 def cena_boa_noite():
     r1 = air_off()
     r2 = _lamp(False)
     r3 = tv_power()
-    return {"success": _ok(r1) and _ok(r2) and _ok(r3)}
+    return _finish({"ar": r1, "luz": r2, "tv": r3})
 
 
 def cena_bom_dia():
@@ -222,47 +251,55 @@ def cena_bom_dia():
     if clima:
         saudacao += f" {clima}"
     r2 = _announce_house(saudacao)
-    return {"success": _ok(r1) and r2}
+    return _finish({"luz": r1, "anúncio": r2})
 
 
 def cena_saida_de_casa():
     r1 = air_off()
     r2 = _lamp(False)
     r3 = _announce_house("Casa fechada, até mais!")
-    return {"success": _ok(r1) and _ok(r2) and r3}
+    return _finish({"ar": r1, "luz": r2, "anúncio": r3})
 
 
 def cena_chegando_de_carro():
     r1 = gate_pulse()
     r2 = _lamp(True)
     r3 = _announce_house("Bem-vindo de volta!")
-    return {"success": _ok(r1) and _ok(r2) and r3}
+    return _finish({"portão": r1, "luz": r2, "anúncio": r3})
+
+
+def cena_chegando_a_pe():
+    """Mesma ideia de cena_chegando_de_carro, sem pulsar o portão — pra
+    quando não vem de carro."""
+    r1 = _lamp(True)
+    r2 = _announce_house("Bem-vindo de volta!")
+    return _finish({"luz": r1, "anúncio": r2})
 
 
 def cena_conforto_ar():
     r1 = air_on()
     time.sleep(2)
     r2 = air_temp(23)
-    return {"success": _ok(r1) and _ok(r2)}
+    return _finish({"ar": r1, "temperatura": r2})
 
 
 def cena_fim_de_cinema():
     r1 = projector_power()
     r2 = _lamp(True)
     r3 = _ha_switch("switch.bruno_s_n65b_do_not_disturb", False)
-    return {"success": _ok(r1) and _ok(r2) and _ok(r3)}
+    return _finish({"projetor": r1, "luz": r2, "não perturbe": r3})
 
 
 def cena_nao_perturbe():
     r1 = _ha_switch("switch.alexa_taiane_do_not_disturb", True)
     r2 = _ha_switch("switch.bruno_s_n65b_do_not_disturb", True)
-    return {"success": _ok(r1) and _ok(r2)}
+    return _finish({"não perturbe Taiane": r1, "não perturbe TV": r2})
 
 
 def cena_assistir_tv():
     r1 = tv_power()
     r2 = _ha_switch("switch.bruno_s_n65b_do_not_disturb", True)
-    return {"success": _ok(r1) and _ok(r2)}
+    return _finish({"tv": r1, "não perturbe": r2})
 
 
 def cena_modo_btv13():
@@ -270,14 +307,14 @@ def cena_modo_btv13():
     r2 = btv13_power()
     time.sleep(5)
     r3 = btv13_home()
-    return {"success": _ok(r1) and _ok(r2) and _ok(r3)}
+    return _finish({"tv": r1, "btv13 power": r2, "btv13 home": r3})
 
 
 def cena_silencio_total():
     r1 = _ha_switch("switch.alexa_taiane_do_not_disturb", True)
     r2 = _ha_switch("switch.bruno_s_n65b_do_not_disturb", True)
     r3 = _alexa_volume(0.05)
-    return {"success": _ok(r1) and _ok(r2) and _ok(r3)}
+    return _finish({"não perturbe Taiane": r1, "não perturbe TV": r2, "volume": r3})
 
 
 def cena_modo_visita():
@@ -301,7 +338,10 @@ def cena_modo_visita():
     r6 = projector_power()
     time.sleep(1)
     r7 = btv13_power()
-    ligar_ok = _ok(r1) and _ok(r2) and _ok(r3) and _ok(r4) and _ok(r5) and _ok(r6) and _ok(r7)
+    ligar = _finish({
+        "luz (ligar)": r1, "portão (ligar)": r2, "tv (ligar)": r3,
+        "tv philips (ligar)": r4, "ar (ligar)": r5, "projetor (ligar)": r6, "btv13 (ligar)": r7,
+    })
 
     time.sleep(30)
 
@@ -318,11 +358,17 @@ def cena_modo_visita():
     r13 = projector_power()
     time.sleep(1)
     r14 = btv13_power()
-    desligar_ok = _ok(r8) and _ok(r9) and _ok(r10) and _ok(r11) and _ok(r12) and _ok(r13) and _ok(r14)
+    desligar = _finish({
+        "luz (desligar)": r8, "portão (desligar)": r9, "tv (desligar)": r10,
+        "tv philips (desligar)": r11, "ar (desligar)": r12, "projetor (desligar)": r13, "btv13 (desligar)": r14,
+    })
 
     _announce_house("Demonstração concluída.")
 
-    return {"success": ligar_ok and desligar_ok}
+    if ligar["success"] and desligar["success"]:
+        return {"success": True}
+    erros = "; ".join(r["error"] for r in (ligar, desligar) if not r["success"])
+    return {"success": False, "error": erros}
 
 
 # ==========================================================
@@ -364,6 +410,7 @@ _SCRIPT_FUNCS = {
     "cena_modo_btv13": cena_modo_btv13,
     "cena_silencio_total": cena_silencio_total,
     "cena_chegando_de_carro": cena_chegando_de_carro,
+    "cena_chegando_a_pe": cena_chegando_a_pe,
     "cena_portao": gate_pulse,
     "cena_modo_visita": cena_modo_visita,
 }
@@ -387,6 +434,7 @@ CENA_LABELS = {
     "cena_nao_perturbe": "Não Perturbe",
     "cena_silencio_total": "Silêncio Total",
     "cena_chegando_de_carro": "Chegando de Carro",
+    "cena_chegando_a_pe": "Chegando a Pé",
     "cena_portao": "Portão",
     "cena_modo_visita": "Modo Visita",
 }

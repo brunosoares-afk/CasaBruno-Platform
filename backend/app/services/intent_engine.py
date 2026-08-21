@@ -57,6 +57,7 @@ class IntentEngine:
         # nada a ver com "bom dia"). Agora que existe uma cena própria pra
         # chegada de carro (portão + luz + anúncio), faz sentido de verdade.
         (["estou chegando", "ja estou chegando", "já estou chegando", "chegando de carro", "cheguei de carro"], ("turn_on", "script.cena_chegando_de_carro")),
+        (["chegando a pe", "chegando a pé", "cheguei a pe", "cheguei a pé"], ("turn_on", "script.cena_chegando_a_pe")),
         (["bom dia"], ("turn_on", "script.cena_bom_dia")),
         (["esta calor", "está calor"], ("turn_on", "script.cena_conforto_ar")),
         (["nao perturbe", "não perturbe", "modo nao perturbe"], ("turn_on", "script.cena_nao_perturbe")),

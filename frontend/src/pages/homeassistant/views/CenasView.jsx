@@ -33,6 +33,7 @@ const OUTRAS_CENAS = [
     { label: "Não Perturbe", domain: "script", service: "turn_on", entityId: "script.cena_nao_perturbe" },
     { label: "Silêncio Total", domain: "script", service: "turn_on", entityId: "script.cena_silencio_total" },
     { label: "Chegando de Carro", domain: "script", service: "turn_on", entityId: "script.cena_chegando_de_carro" },
+    { label: "Chegando a Pé", domain: "script", service: "turn_on", entityId: "script.cena_chegando_a_pe" },
     { label: "Portão", domain: "script", service: "turn_on", entityId: "script.cena_portao" },
     { label: "Modo Visita", domain: "script", service: "turn_on", entityId: "script.cena_modo_visita" },
 ];

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 from app.core.homeassistant.client import ha_client
 from app.integrations.tuya import infrared
-from app.services import ha_websocket_service, homeassistant_service, notify_service, scenes_service, tuya_service
+from app.services import ha_websocket_service, homeassistant_service, notify_service, scenes_service, tuya_service, weather_service
 from app.services.fred_memory import memory as fred_memory
 
 logger = logging.getLogger("automations_service")
@@ -18,6 +18,7 @@ if not logging.getLogger().handlers:
 # igual o resto desse backend já faz (automation_engine.py, scheduler_service.py).
 
 TICK_SECONDS = 60
+HOT_THRESHOLD_C = 28
 
 # Fase 8 — contagem de erro real das automações, pra "como está a casa"
 # poder responder "nenhuma automação apresentou erro" (ou não). As
@@ -97,6 +98,11 @@ AUTOMATIONS = [
         "key": "economia_casa_vazia",
         "label": "Economia com casa vazia",
         "description": "A cada 30min com a casa vazia, confere se ar/luz continuam ligados e desliga de novo.",
+    },
+    {
+        "key": "conforto_ar_chegada",
+        "label": "Ar liga sozinho no calor",
+        "description": f"Quando alguém chega e está {HOT_THRESHOLD_C}°C+ lá fora, liga o ar (se já não estiver ligado).",
     },
 ]
 
@@ -402,6 +408,35 @@ async def _heitor_chegou(new_state: dict):
 
 
 # ==========================================================
+# 13. conforto_ar_chegada — clima real + chegada. Só liga (nunca
+# desliga blindamente) e só se o status real confirmar que o ar já não
+# está ligado — mesma cautela dos outros itens com leitura de estado.
+# ==========================================================
+
+async def _conforto_ar_chegada(new_state: dict):
+    if not _is_enabled("conforto_ar_chegada"):
+        return
+
+    try:
+        temp = weather_service.get_current().get("temperature")
+    except Exception:
+        return
+    if temp is None or temp < HOT_THRESHOLD_C:
+        return
+
+    try:
+        status = await asyncio.to_thread(infrared.air_status)
+        if status.get("power") == "1":
+            return
+    except Exception:
+        logger.exception("Falha ao checar status do ar na chegada")
+        return
+
+    await asyncio.to_thread(infrared.air_on)
+    await notify_service.notify(f"Está {round(temp)}°C lá fora — liguei o ar pra você.")
+
+
+# ==========================================================
 # 12. economia_casa_vazia — a cada 30min com a casa vazia, reconfirma
 # que ar e luz continuam desligados (rede de segurança pro item 10 —
 # só desliga o que está CONFIRMADO ligado via status real, nunca um
@@ -440,6 +475,7 @@ def _on_person_changed(entity_id: str, old_state: str | None, new_state: dict):
 
     if old_state == "not_home" and state == "home":
         asyncio.create_task(_run_tracked(_presenca_chegada_liga_luz(entity_id, new_state)))
+        asyncio.create_task(_run_tracked(_conforto_ar_chegada(new_state)))
         _casa_vazia_disparada = False
         if entity_id == "person.heitor":
             asyncio.create_task(_run_tracked(_heitor_chegou(new_state)))
@@ -456,7 +492,11 @@ def _on_pessoa_reconhecida_changed(entity_id: str, old_state: str | None, new_st
     else:
         _cancel_for("seguranca_desconhecido")
 
-    if state in ("Bruno", "Taiane"):
+    # "Heitor" só vai disparar de verdade quando o rosto dele for
+    # cadastrado em /opt/face-detect-icsee/data/faces/Heitor/ (hoje só
+    # existem pastas Bruno/ e Taiane/ — precisa de fotos reais dele,
+    # e provavelmente reiniciar o face-detect-icsee pra recarregar).
+    if state in ("Bruno", "Taiane", "Heitor"):
         asyncio.create_task(_run_tracked(_rotina_bom_dia(new_state)))
         if state == "Taiane":
             asyncio.create_task(_run_tracked(_rotina_conversa_taiane(new_state)))
