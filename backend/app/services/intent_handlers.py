@@ -407,13 +407,31 @@ class IntentHandlers:
         except Exception:
             pass
 
-        cpu = self._entity_state("sensor.home_assistant_core_cpu_percent")
-        if cpu is not None:
-            parts.append(f"CPU do Home Assistant em {cpu}%")
+        # Antes lia sensor.home_assistant_core_cpu_percent/_memory_percent
+        # — só existiam via HA Core, que não existe mais desde a
+        # desinstalação (Fase 11). Achado 2026-08-21: ficava sempre
+        # silenciosamente sem essa parte. Mesmo status real que
+        # server_system_query já usa.
+        try:
+            status = get_system_status()
+            parts.append(f"CPU do servidor em {round(status['cpu_percent'])}%")
+            parts.append(f"memória em {round(status['memory_percent'])}%")
+        except Exception:
+            pass
 
-        memory = self._entity_state("sensor.home_assistant_core_memory_percent")
-        if memory is not None:
-            parts.append(f"memória em {memory}%")
+        casa_vazia = all(
+            self._entity_state(eid) == "not_home"
+            for eid in ("person.casa_inteligente", "person.taiane", "person.heitor")
+        )
+        if casa_vazia:
+            parts.append("ninguém em casa agora")
+        else:
+            presentes = [
+                nome for eid, nome, _ in self._PRESENCE_PEOPLE.values()
+                if self._entity_state(eid) == "home"
+            ]
+            if presentes:
+                parts.append(f"em casa: {', '.join(presentes)}")
 
         try:
             leases = mikrotik_client.dhcp_leases()
@@ -439,15 +457,52 @@ class IntentHandlers:
 
         return {"success": True, "message": "Resumo da casa: " + ", ".join(parts) + "."}
 
+    # entity_id + como falar o nome (masculino/feminino) por pessoa —
+    # descoberto 2026-08-21 que isso só existia pro Bruno, "onde está a
+    # Taiane"/"onde está o Heitor" respondiam sempre sobre o Bruno.
+    _PRESENCE_PEOPLE = {
+        "bruno": ("person.casa_inteligente", "Bruno", "o"),
+        "taiane": ("person.taiane", "Taiane", "a"),
+        "heitor": ("person.heitor", "Heitor", "o"),
+    }
+
+    def _presence_phrase(self, entity_id, nome, artigo) -> str:
+        state = self._entity_state(entity_id)
+        if state == "home":
+            return f"{nome} está em casa"
+        if state == "not_home":
+            return f"{nome} não está em casa"
+        return f"não sei dizer onde {artigo} {nome.lower()} está"
+
     def presence_query(self, intent):
-        state = self._entity_state("person.casa_inteligente")
+        target = intent.get("target")
+
+        # Sem alvo explícito ("onde está o celular"/"localização" puro):
+        # pergunta sobre quem tá perguntando, se souber quem é — "onde
+        # está o celular" naturalmente quer dizer "o meu".
+        if not target:
+            asker = (intent.get("person") or "").lower()
+            target = asker if asker in self._PRESENCE_PEOPLE else "bruno"
+
+        if target == "todos":
+            frases = [
+                self._presence_phrase(entity_id, nome, artigo)
+                for entity_id, nome, artigo in self._PRESENCE_PEOPLE.values()
+            ]
+            return {"success": True, "message": "Casa: " + ", ".join(frases) + "."}
+
+        if target not in self._PRESENCE_PEOPLE:
+            target = "bruno"
+
+        entity_id, nome, artigo = self._PRESENCE_PEOPLE[target]
+        state = self._entity_state(entity_id)
 
         if state == "home":
-            message = "Bruno está em casa."
+            message = f"{nome} está em casa."
         elif state == "not_home":
-            message = "Bruno não está em casa no momento."
+            message = f"{nome} não está em casa no momento."
         else:
-            message = "Não sei dizer onde o celular está agora."
+            message = f"Não sei dizer onde {artigo} {nome.lower()} está agora."
 
         return {"success": True, "message": message}
 

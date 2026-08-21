@@ -181,8 +181,27 @@ class IntentEngine:
         if self.contains_any(cmd, ["como esta a casa", "como está a casa", "como vai a casa", "resumo da casa"]):
             return {"type": "house_status"}
 
-        if self.contains_any(cmd, ["onde esta o celular", "onde está o celular", "onde esta bruno", "onde está bruno", "celular esta em casa", "celular está em casa", "localizacao", "localização"]):
-            return {"type": "presence_query"}
+        if self.contains_any(
+            cmd,
+            [
+                "onde esta o celular", "onde está o celular", "celular esta em casa", "celular está em casa",
+                "localizacao", "localização",
+                "onde esta bruno", "onde está bruno", "onde esta o bruno", "onde está o bruno",
+                "onde esta taiane", "onde está taiane", "onde esta a taiane", "onde está a taiane",
+                "onde esta heitor", "onde está heitor", "onde esta o heitor", "onde está o heitor",
+                "onde estao todos", "onde estão todos", "quem esta em casa", "quem está em casa",
+            ],
+        ):
+            target = None
+            if self.contains_any(cmd, ["taiane"]):
+                target = "taiane"
+            elif self.contains_any(cmd, ["heitor"]):
+                target = "heitor"
+            elif self.contains_any(cmd, ["bruno"]):
+                target = "bruno"
+            elif self.contains_any(cmd, ["todos", "quem esta", "quem está"]):
+                target = "todos"
+            return {"type": "presence_query", "target": target}
 
         if self.contains_any(cmd, ["bateria celular", "celular carregando", "temperatura celular"]):
             if "carregando" in cmd:
