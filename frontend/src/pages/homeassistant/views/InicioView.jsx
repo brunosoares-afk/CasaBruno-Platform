@@ -28,6 +28,13 @@ const PERSON_ENTITIES = ["person.casa_inteligente", "person.taiane", "person.hei
 const SCENE_ENTITY = "scene.unitv_projetor";
 const MEDIA_PLAYER_ENTITIES = ["media_player.bruno_s_n65b", "media_player.alexa_taiane"];
 
+// Mesma lista de EquipamentosView.jsx (DETECCAO_FACIAL) — trazida pra
+// cá também, a pedido do usuário.
+const DETECCAO_FACIAL = [
+  { entityId: "binary_sensor.icsee_rosto_detectado", label: "Rosto detectado" },
+  { entityId: "sensor.icsee_rostos_detectados", label: "Quantidade de rostos" },
+];
+
 // Mesma lista de EquipamentosView.jsx (STATUS_GERAL) — trazida pra cá
 // também, a pedido do usuário.
 const STATUS_GERAL = [
@@ -197,6 +204,10 @@ export default function InicioView({ byId, activateScene, playPause, mediaNext, 
               />
             );
           })}
+
+          <Box sx={{ mt: 2 }}>
+            <EntitiesStatusCard title="Detecção Facial" entities={DETECCAO_FACIAL} color="error" />
+          </Box>
 
         </Box>
 

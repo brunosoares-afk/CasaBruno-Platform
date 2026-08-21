@@ -36,17 +36,12 @@ AREAS = [
         "name": "Cozinha",
         "entity_ids": ["switch.lampada_cozinha_switch_1"],
     },
-    {
-        "area_id": "sala_de_estar",
-        "name": "Sala de estar",
-        "entity_ids": [
-            "media_player.alexa_taiane",
-            "media_player.bruno_s_n65b",
-            "switch.alexa_taiane_do_not_disturb",
-            "switch.bruno_s_n65b_do_not_disturb",
-        ],
-    },
 ]
+
+# "Sala de estar" (media_player.alexa_taiane/bruno_s_n65b + DND) foi
+# removida daqui 2026-08-21 — os mesmos dispositivos já aparecem no
+# card "Status Geral" (Equipamentos e Início), esse cômodo virou
+# redundante.
 
 
 class HomeAssistantRegistry:
