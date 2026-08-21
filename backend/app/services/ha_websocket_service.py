@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timezone
 
 from app.core.android.manager import android
-from app.services import detection_service, presence_service, tuya_service
+from app.services import alexa_service, detection_service, presence_service, tuya_service
 
 logger = logging.getLogger("ha_websocket_service")
 logger.setLevel(logging.INFO)
@@ -14,6 +14,14 @@ DETECTION_TICK_S = 5
 TUYA_TICK_S = 5
 PRESENCE_TICK_S = 20
 BTV13_TICK_S = 15
+ALEXA_TICK_S = 15
+
+# Nome que o alexa-bridge devolve em GET /devices -> entity_id (mesmo
+# padrão do _TUYA_ENTITIES acima).
+_ALEXA_NAME_TO_ENTITY = {
+    "Alexa Taiane": "media_player.alexa_taiane",
+    "Bruno's N65B": "media_player.bruno_s_n65b",
+}
 
 # Esses entity_id são lidos só pelo _tuya_loop (polling local direto nos
 # dispositivos) — mantido separado do que a HA expunha via Tuya Cloud
@@ -310,8 +318,49 @@ async def _btv13_loop() -> None:
         await asyncio.sleep(BTV13_TICK_S)
 
 
+def _build_alexa_entities() -> dict[str, dict]:
+    """media_player.alexa_taiane/bruno_s_n65b nativos — mesma história do
+    BTV13: eram só entidades da HA, sem HA não existem mais em lugar
+    nenhum, mesmo o alexa-bridge já sabendo o status real (GET /devices)
+    há tempos. Fica '—' na tela até isso alimentar o snapshot."""
+    now = _now_iso()
+    entities: dict[str, dict] = {}
+    for device in alexa_service.devices().values():
+        entity_id = _ALEXA_NAME_TO_ENTITY.get(device.get("name"))
+        if not entity_id:
+            continue
+        entities[entity_id] = {
+            "entity_id": entity_id,
+            "state": "idle" if device.get("online") else "unavailable",
+            "attributes": {"friendly_name": device.get("name")},
+            "last_updated": now,
+        }
+    return entities
+
+
+async def _alexa_loop() -> None:
+    while True:
+        try:
+            entities = await asyncio.to_thread(_build_alexa_entities)
+            for entity_id, new_state in entities.items():
+                old = _snapshot_by_id.get(entity_id)
+                _snapshot_by_id[entity_id] = new_state
+                changed = old is None or old.get("state") != new_state.get("state")
+                if changed:
+                    await _broadcast({
+                        "type": "state_changed",
+                        "entity_id": entity_id,
+                        "new_state": new_state,
+                    })
+        except Exception:
+            logger.exception("Falha no loop da Alexa")
+
+        await asyncio.sleep(ALEXA_TICK_S)
+
+
 def start_ha_websocket_relay():
     asyncio.create_task(_detection_loop())
     asyncio.create_task(_tuya_loop())
     asyncio.create_task(_presence_loop())
     asyncio.create_task(_btv13_loop())
+    asyncio.create_task(_alexa_loop())

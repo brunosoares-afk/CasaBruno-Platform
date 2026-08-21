@@ -20,6 +20,21 @@ def is_managed(entity_id: str) -> bool:
     return entity_id in MANAGED_ENTITY_IDS
 
 
+def devices() -> dict:
+    """{serial: {name, online}} pros dispositivos Alexa — usado pelo
+    loop nativo em ha_websocket_service.py pra alimentar
+    media_player.alexa_taiane/bruno_s_n65b, que não existem mais desde
+    que a HA saiu (nada mais os produzia, ficavam sempre '—' no
+    dashboard)."""
+    try:
+        r = requests.get(f"{BRIDGE_URL}/devices", timeout=TIMEOUT)
+        r.raise_for_status()
+        return r.json()
+    except Exception:
+        logger.exception("Falha ao ler devices do alexa-bridge")
+        return {}
+
+
 def _post(path: str, **params) -> bool:
     try:
         r = requests.post(f"{BRIDGE_URL}{path}", params=params, timeout=TIMEOUT)
