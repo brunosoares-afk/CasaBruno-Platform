@@ -17,8 +17,8 @@ import ActionButtonGrid from "../widgets/ActionButtonGrid";
 const STATUS_GERAL = [
     { entityId: "person.casa_inteligente", label: "Bruno" },
     { entityId: "person.taiane", label: "Taiane" },
+    { entityId: "person.heitor", label: "Heitor" },
     { entityId: "sensor.icsee_pessoa_reconhecida", label: "Reconhecido pela câmera" },
-    { entityId: "sensor.poco_x8_heart_rate", label: "Batimento cardíaco" },
     { entityId: "switch.portao_casa_switch_1", label: "Portão" },
     { entityId: "media_player.bruno_s_n65b", label: "TV" },
 ];

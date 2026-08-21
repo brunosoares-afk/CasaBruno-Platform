@@ -24,7 +24,7 @@ const DOMINIOS_RELEVANTES = [
   "media_player", "binary_sensor", "lock", "vacuum",
 ];
 
-const PERSON_ENTITIES = ["person.casa_inteligente", "person.taiane", "person.teste_casa"];
+const PERSON_ENTITIES = ["person.casa_inteligente", "person.taiane", "person.heitor"];
 const SCENE_ENTITY = "scene.unitv_projetor";
 const MEDIA_PLAYER_ENTITIES = ["media_player.bruno_s_n65b"];
 
