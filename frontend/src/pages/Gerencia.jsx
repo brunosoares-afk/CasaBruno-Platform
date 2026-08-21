@@ -8,6 +8,7 @@ import AndroidDashboard from "./AndroidDashboard";
 import Network from "./Network";
 import Docker from "./Docker";
 import Mikrotik from "./Mikrotik";
+import Rostos from "./Rostos";
 import Settings from "./Settings";
 
 const VIEWS = {
@@ -15,6 +16,7 @@ const VIEWS = {
     rede: Network,
     docker: Docker,
     mikrotik: Mikrotik,
+    rostos: Rostos,
     configuracoes: Settings,
 };
 
@@ -121,6 +123,7 @@ export default function Gerencia() {
                 <Tab value="rede" label="Rede" />
                 <Tab value="docker" label="Docker" />
                 <Tab value="mikrotik" label="MikroTik" />
+                <Tab value="rostos" label="Rostos" />
                 <Tab value="configuracoes" label="Configurações" />
             </Tabs>
 
