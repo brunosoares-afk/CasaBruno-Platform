@@ -56,5 +56,12 @@ class MikrotikClient:
         finally:
             pool.disconnect()
 
+    def arp(self):
+        api, pool = self.connect()
+        try:
+            return api.get_resource("/ip/arp").get()
+        finally:
+            pool.disconnect()
+
 
 mikrotik_client = MikrotikClient()

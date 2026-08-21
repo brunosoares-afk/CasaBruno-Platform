@@ -35,13 +35,18 @@ FRIENDLY_NAME = {
 }
 
 # Lease "bound" persiste mesmo com o aparelho fora do ar (é uma reserva
-# estática, não expira como lease dinâmica) — só o "last-seen" (quando o
-# roteador viu tráfego/ARP de verdade daquele MAC) diz se está realmente
-# conectado agora. Testado ao vivo 2026-08-16: com os dois em casa de
-# verdade, os leases ainda apareciam com ~14min de "last-seen" (celular
-# parado não gera tráfego o tempo todo) — 600s (10min) já dava falso
-# "not_home". 30min dá folga real pra isso sem demorar bobagem pra
-# detectar uma saída de verdade.
+# estática, não expira como lease dinâmica) — o "last-seen" do lease
+# PARECIA ser o sinal certo (quando o roteador viu tráfego/ARP de
+# verdade), mas descoberto 2026-08-21 que isso é falso: "last-seen" só
+# atualiza em eventos de protocolo DHCP (renovação), não em tráfego real
+# — com lease-time de 12h isso pode ficar horas sem atualizar mesmo com
+# o aparelho conectado o tempo todo (Taiane e Heitor confirmados em casa
+# mostravam 3h+ de "last-seen" e "Fora" no dashboard). A tabela ARP
+# (/ip/arp) reflete presença de verdade — testado ao vivo, os dois
+# apareciam lá com status "stale"/complete=true bem antes do lease
+# "acordar". Fonte primária agora é ARP; o lease vira só um OR extra
+# (não atrapalha, só ajuda no raro caso do ARP não ter a entrada mas o
+# DHCP acabou de ver o aparelho).
 HOME_THRESHOLD_SECONDS = 1800
 
 _DURATION_RE = re.compile(r"(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?")
@@ -63,13 +68,32 @@ def get_presence() -> dict[str, str]:
     """entity_id -> 'home'/'not_home' pros MACs conhecidos. Dict vazio se
     o MikroTik não respondeu (chamador decide se mantém o último estado)."""
     try:
+        arp_entries = mikrotik_client.arp()
+    except Exception:
+        logger.exception("Falha ao ler ARP do MikroTik")
+        arp_entries = None
+
+    try:
         leases = mikrotik_client.dhcp_leases()
     except Exception:
         logger.exception("Falha ao ler leases do MikroTik")
+        leases = None
+
+    if arp_entries is None and leases is None:
         return {}
 
     result: dict[str, str] = {}
-    for lease in leases:
+
+    for entry in arp_entries or []:
+        mac = (entry.get("mac-address") or "").upper()
+        entity_id = MAC_TO_ENTITY.get(mac)
+        if not entity_id:
+            continue
+        is_home = entry.get("complete") == "true"
+        if is_home or entity_id not in result:
+            result[entity_id] = "home" if is_home else "not_home"
+
+    for lease in leases or []:
         mac = (lease.get("mac-address") or "").upper()
         entity_id = MAC_TO_ENTITY.get(mac)
         if not entity_id:
@@ -78,10 +102,9 @@ def get_presence() -> dict[str, str]:
         age = _parse_last_seen(lease.get("last-seen", ""))
         is_home = age is not None and age <= HOME_THRESHOLD_SECONDS
 
-        # Duas leases pro mesmo MAC não deveria acontecer, mas se acontecer
-        # (ex: reserva duplicada em dois servers DHCP), "home" em qualquer
-        # uma já basta.
-        if is_home or entity_id not in result:
-            result[entity_id] = "home" if is_home else "not_home"
+        if is_home:
+            result[entity_id] = "home"
+        elif entity_id not in result:
+            result[entity_id] = "not_home"
 
     return result
