@@ -1,10 +1,14 @@
 import { Card, Grid, Box, Typography } from "@mui/material";
 import BoltIcon from "@mui/icons-material/Bolt";
+import StarIcon from "@mui/icons-material/Star";
+import StarBorderIcon from "@mui/icons-material/StarBorder";
 import { useHaServiceCall } from "../../../modules/jarvis/services/haApi";
 import SectionLabel from "../../../components/dashboard/SectionLabel";
 
 // actions: [{ label, icon?, domain, service, entityId, data? }]
-export default function ActionButtonGrid({ title, actions, columns = 3, color = "secondary" }) {
+// pinnedIds/onTogglePin são opcionais — só quem quer o "fixar" (ex:
+// Cenas) passa; sem eles a estrela nem aparece, resto do app não muda.
+export default function ActionButtonGrid({ title, actions, columns = 3, color = "secondary", pinnedIds, onTogglePin }) {
 
     const { mutate: callService, isPending } = useHaServiceCall();
     const smSize = 12 / columns;
@@ -29,6 +33,7 @@ export default function ActionButtonGrid({ title, actions, columns = 3, color = 
                                 })
                             }
                             sx={{
+                                position: "relative",
                                 cursor: isPending ? "default" : "pointer",
                                 p: 2,
                                 borderRadius: 3,
@@ -48,6 +53,27 @@ export default function ActionButtonGrid({ title, actions, columns = 3, color = 
                                 },
                             }}
                         >
+                            {onTogglePin && (
+                                <Box
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onTogglePin(a.entityId);
+                                    }}
+                                    sx={{
+                                        position: "absolute",
+                                        top: 4,
+                                        right: 4,
+                                        display: "flex",
+                                        color: pinnedIds?.includes(a.entityId) ? "#FFD54F" : "rgba(255,255,255,.35)",
+                                        "&:hover": { color: "#FFD54F" },
+                                    }}
+                                >
+                                    {pinnedIds?.includes(a.entityId)
+                                        ? <StarIcon fontSize="small" />
+                                        : <StarBorderIcon fontSize="small" />}
+                                </Box>
+                            )}
+
                             <Box
                                 sx={{
                                     width: 44,

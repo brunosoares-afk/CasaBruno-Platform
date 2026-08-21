@@ -1,7 +1,22 @@
+import { useState } from "react";
 import { Stack } from "@mui/material";
 import NativeSceneButtons from "../widgets/NativeSceneButtons";
 import ActionButtonGrid from "../widgets/ActionButtonGrid";
 import AutomationsCard from "../widgets/AutomationsCard";
+
+// Cenas favoritas/fixadas — só localStorage (client-side), sem backend
+// pra isso, é pura preferência de exibição de quem está usando o
+// navegador.
+const PINNED_STORAGE_KEY = "casabruno_cenas_fixadas";
+
+function loadPinned() {
+    try {
+        const raw = localStorage.getItem(PINNED_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch {
+        return [];
+    }
+}
 
 // Antes chamava script.fred_scene_unitv / script.fred_scene_desenho_heitor
 // via HA (script.*) — hoje sabemos que esse entity_id já era interceptado
@@ -39,10 +54,41 @@ const OUTRAS_CENAS = [
 ];
 
 export default function CenasView() {
+    const [pinned, setPinned] = useState(loadPinned);
+
+    const togglePin = (entityId) => {
+        setPinned((prev) => {
+            const next = prev.includes(entityId)
+                ? prev.filter((id) => id !== entityId)
+                : [...prev, entityId];
+            localStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify(next));
+            return next;
+        });
+    };
+
+    const favoritas = OUTRAS_CENAS.filter((a) => pinned.includes(a.entityId));
+
     return (
         <Stack spacing={2}>
+            {favoritas.length > 0 && (
+                <ActionButtonGrid
+                    title="Favoritas"
+                    actions={favoritas}
+                    columns={3}
+                    color="success"
+                    pinnedIds={pinned}
+                    onTogglePin={togglePin}
+                />
+            )}
             <NativeSceneButtons title="Cenas T&B Residencial" actions={CENAS} columns={3} />
-            <ActionButtonGrid title="Outras Cenas" actions={OUTRAS_CENAS} columns={3} color="primary" />
+            <ActionButtonGrid
+                title="Outras Cenas"
+                actions={OUTRAS_CENAS}
+                columns={3}
+                color="primary"
+                pinnedIds={pinned}
+                onTogglePin={togglePin}
+            />
             <AutomationsCard title="Atividades" />
             <AutomationsCard title="Automações" onlyEnabled={false} />
         </Stack>
