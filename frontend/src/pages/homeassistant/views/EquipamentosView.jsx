@@ -21,6 +21,7 @@ const STATUS_GERAL = [
     { entityId: "sensor.icsee_pessoa_reconhecida", label: "Reconhecido pela câmera" },
     { entityId: "switch.portao_casa_switch_1", label: "Portão" },
     { entityId: "media_player.bruno_s_n65b", label: "TV" },
+    { entityId: "media_player.alexa_taiane", label: "Alexa Taiane" },
 ];
 
 const ILUMINACAO = [
