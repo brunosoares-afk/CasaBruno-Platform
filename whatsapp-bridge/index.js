@@ -38,11 +38,16 @@ let sock = null;
 let connectionState = { connected: false, hasQr: false };
 const sentByBridge = new Set();
 
-// Esse número é exclusivo do Fred (não é mais o pessoal do Bruno), então
-// qualquer contato 1:1 pode falar com ele — grupos continuam bloqueados
-// à parte (ver "@g.us" no listener de messages.upsert).
+// RESTRINGIDO DE VOLTA 2026-08-21 — o "qualquer contato pode falar"
+// (2026-08-15) permitiu que um número desconhecido (5527997176739,
+// confirmado NÃO ser da Taiane) conversasse com o Fred e chegasse a
+// executar um comando real de controle de dispositivo ("desliga ela").
+// Volta a usar WHATSAPP_ALLOWED_JIDS (mecanismo que já existia, só
+// estava sem efeito) — números ficam só no Environment= do systemd,
+// não no código versionado. Grupos continuam bloqueados à parte (ver
+// "@g.us" no listener de messages.upsert).
 function isAllowed(jid) {
-  return true;
+  return extraAllowed.includes(jid);
 }
 
 async function extractIncoming(msg) {
