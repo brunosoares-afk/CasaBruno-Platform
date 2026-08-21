@@ -25,11 +25,13 @@ MAC_TO_ENTITY = {
     # pra mesma person.* já funcionam sem mudar get_presence() (agrega
     # "home" se qualquer uma das leases estiver recente).
     "D2:50:EB:51:EF:DB": "person.taiane",  # Taiane, POCO X6, rede principal
+    "76:08:46:6B:B9:11": "person.heitor",  # Heitor, Redmi Note 12S, rede principal
 }
 
 FRIENDLY_NAME = {
     "person.casa_inteligente": "Casa Inteligente",
     "person.taiane": "Taiane",
+    "person.heitor": "Heitor",
 }
 
 # Lease "bound" persiste mesmo com o aparelho fora do ar (é uma reserva
