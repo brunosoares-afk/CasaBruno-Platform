@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import random
 from datetime import datetime, timezone
 
 from app.core.homeassistant.client import ha_client
@@ -19,6 +20,10 @@ if not logging.getLogger().handlers:
 
 TICK_SECONDS = 60
 HOT_THRESHOLD_C = 28
+FERIAS_TICK_S = 1800  # 30min
+FERIAS_HORA_INICIO = 18
+FERIAS_HORA_FIM = 23
+FERIAS_CHANCE_TOGGLE = 0.35
 
 # Fase 8 — contagem de erro real das automações, pra "como está a casa"
 # poder responder "nenhuma automação apresentou erro" (ou não). As
@@ -104,7 +109,21 @@ AUTOMATIONS = [
         "label": "Ar liga sozinho no calor",
         "description": f"Quando alguém chega e está {HOT_THRESHOLD_C}°C+ lá fora, liga o ar (se já não estiver ligado).",
     },
+    {
+        "key": "modo_ferias",
+        "label": "Modo Férias",
+        "description": "Alterna a luz da cozinha em horários aleatórios à noite pra simular presença. Ative manualmente quando viajar — desligado por padrão.",
+    },
 ]
+
+# modo_ferias precisa nascer DESLIGADO (diferente de todas as outras
+# automações, que por segurança/utilidade já nascem ligadas por padrão
+# em _is_enabled) — ativar sozinho enquanto a família está em casa só
+# ficaria piscando luz à toa. Só seta explícito na primeira vez (se já
+# existe uma escolha salva, respeita ela).
+_MODO_FERIAS_KEY = _ENABLED_KEY_PREFIX + "modo_ferias"
+if fred_memory.recall(None, _MODO_FERIAS_KEY) is None:
+    fred_memory.remember(None, _MODO_FERIAS_KEY, False)
 
 _AUTOMATION_KEYS = {a["key"] for a in AUTOMATIONS}
 
@@ -465,6 +484,38 @@ async def _economia_casa_vazia_tick():
 
 
 # ==========================================================
+# 14. modo_ferias — desligado por padrão (ver seed logo após
+# AUTOMATIONS). Só ativa fora do horário comercial e só se a casa
+# estiver mesmo vazia (senão simular presença enquanto tem gente em
+# casa de verdade não faz sentido nenhum e só ia piscar luz à toa).
+# Chance de alternar por tick em vez de sempre, pra não virar um
+# padrão óbvio e regular.
+# ==========================================================
+
+async def _modo_ferias_tick():
+    if not _is_enabled("modo_ferias") or not _todos_fora():
+        return
+
+    hour = datetime.now(timezone.utc).astimezone().hour
+    if not (FERIAS_HORA_INICIO <= hour <= FERIAS_HORA_FIM):
+        return
+
+    if random.random() > FERIAS_CHANCE_TOGGLE:
+        return
+
+    try:
+        is_on = await asyncio.to_thread(tuya_service.get_status, "lampada_cozinha")
+        if is_on is None:
+            return
+        if is_on:
+            await asyncio.to_thread(tuya_service.turn_off, "lampada_cozinha")
+        else:
+            await asyncio.to_thread(tuya_service.turn_on, "lampada_cozinha")
+    except Exception:
+        logger.exception("Falha no modo férias")
+
+
+# ==========================================================
 # DISPATCH — recebe todo state_changed, decide quais das 10
 # automações reagem a cada entity_id
 # ==========================================================
@@ -601,7 +652,14 @@ async def _economia_casa_vazia_loop():
         await _run_tracked(_economia_casa_vazia_tick())
 
 
+async def _modo_ferias_loop():
+    while True:
+        await asyncio.sleep(FERIAS_TICK_S)
+        await _run_tracked(_modo_ferias_tick())
+
+
 def start_automations():
     ha_websocket_service.subscribe(_on_ws_message)
     asyncio.create_task(_daily_reset_loop())
     asyncio.create_task(_economia_casa_vazia_loop())
+    asyncio.create_task(_modo_ferias_loop())
