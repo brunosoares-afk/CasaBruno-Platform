@@ -206,7 +206,7 @@ export default function InicioView({ byId, activateScene, playPause, mediaNext, 
           })}
 
           <Box sx={{ mt: 2 }}>
-            <EntitiesStatusCard title="Detecção Facial" entities={DETECCAO_FACIAL} color="error" />
+            <EntitiesStatusCard title="Detecção Facial" entities={DETECCAO_FACIAL} color="error" columns={1} />
           </Box>
 
         </Box>

@@ -29,7 +29,8 @@ function isActive(entity, domain) {
 // entities: [{ entityId, label, showAttribute? }]
 // showAttribute mostra attributes[showAttribute] (formatado como data) em
 // vez do estado bruto — usado pro "último disparo" das automações.
-export default function EntitiesStatusCard({ title, entities, color = "info" }) {
+export default function EntitiesStatusCard({ title, entities, color = "info", columns = 2 }) {
+    const itemSize = columns === 1 ? { xs: 12 } : { xs: 12, sm: 6 };
 
     const { data: states } = useHomeAssistantStates();
     const statesMap = indexStates(states);
@@ -64,7 +65,7 @@ export default function EntitiesStatusCard({ title, entities, color = "info" }) 
                     }
 
                     return (
-                        <Grid key={entityId} size={{ xs: 12, sm: 6 }}>
+                        <Grid key={entityId} size={itemSize}>
                             <Box
                                 sx={{
                                     display: "flex",
