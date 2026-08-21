@@ -280,6 +280,51 @@ def cena_silencio_total():
     return {"success": _ok(r1) and _ok(r2) and _ok(r3)}
 
 
+def cena_modo_visita():
+    """Demonstração: liga tudo que temos cadastrado, espera 30s, desliga
+    tudo de volta. TV/projetor/portão são comandos de pulso/toggle (sem
+    leitura de estado real) — como o "desligar" aqui é sempre o MESMO
+    comando repetido 30s depois, o efeito líquido é neutro (volta pro
+    estado de antes) independente de onde cada um estava quando começou."""
+    _announce_house("Iniciando demonstração de todos os dispositivos!")
+
+    r1 = _lamp(True)
+    time.sleep(1)
+    r2 = gate_pulse()
+    time.sleep(1)
+    r3 = tv_power()
+    time.sleep(1)
+    r4 = tv_philips_power()
+    time.sleep(1)
+    r5 = air_on()
+    time.sleep(1)
+    r6 = projector_power()
+    time.sleep(1)
+    r7 = btv13_power()
+    ligar_ok = _ok(r1) and _ok(r2) and _ok(r3) and _ok(r4) and _ok(r5) and _ok(r6) and _ok(r7)
+
+    time.sleep(30)
+
+    r8 = _lamp(False)
+    time.sleep(1)
+    r9 = gate_pulse()
+    time.sleep(1)
+    r10 = tv_power()
+    time.sleep(1)
+    r11 = tv_philips_power_off()
+    time.sleep(1)
+    r12 = air_off()
+    time.sleep(1)
+    r13 = projector_power()
+    time.sleep(1)
+    r14 = btv13_power()
+    desligar_ok = _ok(r8) and _ok(r9) and _ok(r10) and _ok(r11) and _ok(r12) and _ok(r13) and _ok(r14)
+
+    _announce_house("Demonstração concluída.")
+
+    return {"success": ligar_ok and desligar_ok}
+
+
 # ==========================================================
 # INTERCEPTAÇÃO — mesmo padrão da Fase 2 (tuya_service.is_managed):
 # entity_id do "script.*" já usado pelo frontend/Fred continua igual,
@@ -288,7 +333,7 @@ def cena_silencio_total():
 # scenes.py original: não travar o worker do FastAPI por vários segundos.
 # ==========================================================
 
-_THREADED = {"cena_modo_cinema", "cena_conforto_ar", "cena_fim_de_cinema", "cena_modo_btv13"}
+_THREADED = {"cena_modo_cinema", "cena_conforto_ar", "cena_fim_de_cinema", "cena_modo_btv13", "cena_modo_visita"}
 
 _SCRIPT_FUNCS = {
     "fred_tv_power": tv_power,
@@ -320,6 +365,7 @@ _SCRIPT_FUNCS = {
     "cena_silencio_total": cena_silencio_total,
     "cena_chegando_de_carro": cena_chegando_de_carro,
     "cena_portao": gate_pulse,
+    "cena_modo_visita": cena_modo_visita,
 }
 
 SCRIPT_ENTITY_IDS = {f"script.{name}" for name in _SCRIPT_FUNCS}
@@ -342,6 +388,7 @@ CENA_LABELS = {
     "cena_silencio_total": "Silêncio Total",
     "cena_chegando_de_carro": "Chegando de Carro",
     "cena_portao": "Portão",
+    "cena_modo_visita": "Modo Visita",
 }
 
 

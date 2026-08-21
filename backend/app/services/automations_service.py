@@ -3,7 +3,8 @@ import logging
 from datetime import datetime, timezone
 
 from app.core.homeassistant.client import ha_client
-from app.services import ha_websocket_service, homeassistant_service, notify_service
+from app.integrations.tuya import infrared
+from app.services import ha_websocket_service, homeassistant_service, notify_service, scenes_service, tuya_service
 from app.services.fred_memory import memory as fred_memory
 
 logger = logging.getLogger("automations_service")
@@ -83,9 +84,19 @@ AUTOMATIONS = [
         "description": "Avisa quando a BTV13 perde a conexão de depuração por 2 minutos.",
     },
     {
-        "key": "batimento_elevado",
-        "label": "Alerta de batimento cardíaco elevado",
-        "description": "Avisa se o relógio registrar mais de 120bpm por 20s.",
+        "key": "casa_vazia_saida",
+        "label": "Casa vazia desliga tudo",
+        "description": "Quando Bruno, Taiane e Heitor saem todos, roda a cena 'Saída de Casa' sozinho.",
+    },
+    {
+        "key": "heitor_chegou",
+        "label": "Heitor chegou em casa",
+        "description": "Avisa por WhatsApp quando o Heitor chega.",
+    },
+    {
+        "key": "economia_casa_vazia",
+        "label": "Economia com casa vazia",
+        "description": "A cada 30min com a casa vazia, confere se ar/luz continuam ligados e desliga de novo.",
     },
 ]
 
@@ -108,7 +119,16 @@ def list_automations() -> list[dict]:
 
 MOBILE_APP_SERVICE = "mobile_app_poco_x8"
 
-PERSON_ENTITIES = ("person.casa_inteligente", "person.taiane")
+PERSON_ENTITIES = ("person.casa_inteligente", "person.taiane", "person.heitor")
+
+# 2026-08-21: Heitor faltava aqui antes — a checagem de "casa vazia" (usada
+# pelo alerta de rosto desconhecido) rodava incompleta, considerando a casa
+# vazia mesmo com ele em casa.
+EMPTY_HOUSE_RECHECK_S = 1800  # 30min
+
+# "Casa vazia" dispara a cena de saída uma vez por janela vazia — reseta
+# assim que alguém volta, pra não travar disparado nem repetir toda hora.
+_casa_vazia_disparada = False
 
 # Último estado completo conhecido por entity_id — semeado pelo snapshot
 # inicial que o _relay_loop já manda, depois mantido pelos state_changed.
@@ -169,6 +189,10 @@ def _in_cooldown(key: str) -> bool:
 def _state_of(entity_id: str) -> str | None:
     entity = _last_state.get(entity_id)
     return entity.get("state") if entity else None
+
+
+def _todos_fora() -> bool:
+    return all(_state_of(p) == "not_home" for p in PERSON_ENTITIES)
 
 
 # ==========================================================
@@ -348,22 +372,61 @@ async def _btv13_perdeu_adb(new_state: dict):
 
 
 # ==========================================================
-# 10. saude_batimento_cardiaco_elevado (numeric, for 20s)
+# 10. casa_vazia_saida — Bruno, Taiane e Heitor todos "not_home"
 # ==========================================================
 
-async def _batimento_elevado(new_state: dict):
-    if not _is_enabled("batimento_elevado"):
+async def _casa_vazia_saida(new_state: dict):
+    global _casa_vazia_disparada
+    if not _is_enabled("casa_vazia_saida") or _casa_vazia_disparada:
         return
 
-    if _in_cooldown("batimento_alerta"):
+    _casa_vazia_disparada = True
+    result = await asyncio.to_thread(scenes_service.run, "script.cena_saida_de_casa")
+    if result.get("success"):
+        await notify_service.notify("Casa vazia — rodei a cena 'Saída de Casa' sozinho (ar/luz desligados).")
+    else:
+        await _push(
+            "⚠️ Casa vazia, mas a cena de saída falhou",
+            "Detectei a casa vazia mas não consegui desligar tudo sozinho — confira manualmente.",
+        )
+
+
+# ==========================================================
+# 11. heitor_chegou
+# ==========================================================
+
+async def _heitor_chegou(new_state: dict):
+    if not _is_enabled("heitor_chegou"):
+        return
+    await notify_service.notify("Heitor chegou em casa.")
+
+
+# ==========================================================
+# 12. economia_casa_vazia — a cada 30min com a casa vazia, reconfirma
+# que ar e luz continuam desligados (rede de segurança pro item 10 —
+# só desliga o que está CONFIRMADO ligado via status real, nunca um
+# toggle às cegas, então não corre o risco de ligar algo por engano).
+# ==========================================================
+
+async def _economia_casa_vazia_tick():
+    if not _is_enabled("economia_casa_vazia") or not _todos_fora():
         return
 
-    _start_cooldown("batimento_alerta", 10 * 60)
-    bpm = new_state.get("state")
-    await _push(
-        "❤️ Batimento cardíaco elevado",
-        f"Seu relógio registrou {bpm} bpm, acima do limite de 120.",
-    )
+    try:
+        status = await asyncio.to_thread(infrared.air_status)
+        if status.get("power") == "1":
+            await asyncio.to_thread(infrared.air_off)
+            await notify_service.notify("Casa vazia: o ar-condicionado ainda estava ligado, desliguei de novo.")
+    except Exception:
+        logger.exception("Falha ao reconferir o ar na casa vazia")
+
+    try:
+        is_on = await asyncio.to_thread(tuya_service.get_status, "lampada_cozinha")
+        if is_on:
+            await asyncio.to_thread(tuya_service.turn_off, "lampada_cozinha")
+            await notify_service.notify("Casa vazia: a luz da cozinha ainda estava ligada, desliguei de novo.")
+    except Exception:
+        logger.exception("Falha ao reconferir a luz na casa vazia")
 
 
 # ==========================================================
@@ -372,8 +435,17 @@ async def _batimento_elevado(new_state: dict):
 # ==========================================================
 
 def _on_person_changed(entity_id: str, old_state: str | None, new_state: dict):
-    if old_state == "not_home" and new_state.get("state") == "home":
+    global _casa_vazia_disparada
+    state = new_state.get("state")
+
+    if old_state == "not_home" and state == "home":
         asyncio.create_task(_run_tracked(_presenca_chegada_liga_luz(entity_id, new_state)))
+        _casa_vazia_disparada = False
+        if entity_id == "person.heitor":
+            asyncio.create_task(_run_tracked(_heitor_chegou(new_state)))
+
+    elif old_state == "home" and state == "not_home" and _todos_fora():
+        asyncio.create_task(_run_tracked(_casa_vazia_saida(new_state)))
 
 
 def _on_pessoa_reconhecida_changed(entity_id: str, old_state: str | None, new_state: dict):
@@ -405,25 +477,13 @@ def _on_btv13_adb_changed(entity_id: str, old_state: str | None, new_state: dict
         _cancel_for("btv13_adb")
 
 
-def _on_heart_rate_changed(entity_id: str, old_state: str | None, new_state: dict):
-    try:
-        value = float(new_state.get("state"))
-    except (TypeError, ValueError):
-        return
-
-    if value > 120:
-        _schedule_for("batimento_elevado", 20, _batimento_elevado, new_state)
-    else:
-        _cancel_for("batimento_elevado")
-
-
 _ENTITY_HANDLERS = {
     "person.casa_inteligente": _on_person_changed,
     "person.taiane": _on_person_changed,
+    "person.heitor": _on_person_changed,
     "sensor.icsee_pessoa_reconhecida": _on_pessoa_reconhecida_changed,
     "binary_sensor.yoosee_placa_alvo_detectada": _on_placa_alvo_changed,
     "binary_sensor.btv13_adb": _on_btv13_adb_changed,
-    "sensor.poco_x8_heart_rate": _on_heart_rate_changed,
 }
 
 
@@ -495,6 +555,13 @@ async def _daily_reset_loop():
         await asyncio.sleep(TICK_SECONDS)
 
 
+async def _economia_casa_vazia_loop():
+    while True:
+        await asyncio.sleep(EMPTY_HOUSE_RECHECK_S)
+        await _run_tracked(_economia_casa_vazia_tick())
+
+
 def start_automations():
     ha_websocket_service.subscribe(_on_ws_message)
     asyncio.create_task(_daily_reset_loop())
+    asyncio.create_task(_economia_casa_vazia_loop())
