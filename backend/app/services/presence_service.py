@@ -19,6 +19,12 @@ if not logging.getLogger().handlers:
 MAC_TO_ENTITY = {
     "96:24:6A:C6:E0:14": "person.casa_inteligente",  # Bruno, POCO X8, rede de casa
     "BE:80:F2:F2:CE:2A": "person.taiane",  # Taiane, POCO X6, rede Sogra
+    # Segundo MAC do mesmo aparelho (POCO X6) — Android randomiza o MAC
+    # por rede, então na rede principal ela aparece com um MAC diferente
+    # do da rede Sogra. Confirmado com o Bruno 2026-08-21. Duas entradas
+    # pra mesma person.* já funcionam sem mudar get_presence() (agrega
+    # "home" se qualquer uma das leases estiver recente).
+    "D2:50:EB:51:EF:DB": "person.taiane",  # Taiane, POCO X6, rede principal
 }
 
 FRIENDLY_NAME = {
