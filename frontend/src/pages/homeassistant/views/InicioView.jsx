@@ -28,6 +28,18 @@ const PERSON_ENTITIES = ["person.casa_inteligente", "person.taiane", "person.hei
 const SCENE_ENTITY = "scene.unitv_projetor";
 const MEDIA_PLAYER_ENTITIES = ["media_player.bruno_s_n65b", "media_player.alexa_taiane"];
 
+// Mesma lista de EquipamentosView.jsx (STATUS_GERAL) — trazida pra cá
+// também, a pedido do usuário.
+const STATUS_GERAL = [
+  { entityId: "person.casa_inteligente", label: "Bruno" },
+  { entityId: "person.taiane", label: "Taiane" },
+  { entityId: "person.heitor", label: "Heitor" },
+  { entityId: "sensor.icsee_pessoa_reconhecida", label: "Reconhecido pela câmera" },
+  { entityId: "switch.portao_casa_switch_1", label: "Portão" },
+  { entityId: "media_player.bruno_s_n65b", label: "TV" },
+  { entityId: "media_player.alexa_taiane", label: "Alexa Taiane" },
+];
+
 const PERSON_STATE_LABEL = {
   home: "Em casa",
   not_home: "Fora",
@@ -91,6 +103,11 @@ export default function InicioView({ byId, activateScene, playPause, mediaNext, 
           ))}
         </Box>
 
+      </Box>
+
+      {/* STATUS GERAL — mesma lista de EquipamentosView.jsx */}
+      <Box sx={{ mb: 3 }}>
+        <EntitiesStatusCard title="Status Geral" entities={STATUS_GERAL} color="primary" />
       </Box>
 
       {/* CÔMODOS — mesma fonte de dados/filtro da aba "Áreas", trazida
