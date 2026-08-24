@@ -62,6 +62,19 @@ def get_recognized_person():
     return "desconhecido"
 
 
+def report_recognized_person(name: str):
+    """Atualiza o mesmo cache de 'última pessoa reconhecida' que
+    get_recognized_person() usa, mas vindo de uma fonte diferente da
+    câmera fixa da sala — a câmera do próprio dispositivo de quem abriu
+    o painel (ver [[casa-bruno-web-face-recognition-2026-08-23]]). Mesma
+    janela de 10min, mesmo efeito: Fred atribui voz/perfil à pessoa
+    certa mesmo longe da câmera icsee."""
+    if name in (None, "Ninguém", "Desconhecido"):
+        return
+    _last_recognized["name"] = name
+    _last_recognized["at"] = time.monotonic()
+
+
 def get_config():
     return ha_client.get("/config")
 

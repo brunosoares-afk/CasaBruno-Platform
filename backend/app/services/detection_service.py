@@ -25,6 +25,19 @@ def get_plate_status() -> dict | None:
         return None
 
 
+def recognize_face_in_image(image_bytes: bytes) -> dict:
+    """Manda um frame (câmera do dispositivo de quem abriu o painel web,
+    não a icsee fixa) pro mesmo reconhecedor LBPH já treinado, ver
+    [[casa-bruno-web-face-recognition-2026-08-23]]."""
+    r = requests.post(
+        f"{FACE_BASE_URL}/recognize",
+        files={"file": ("frame.jpg", image_bytes, "image/jpeg")},
+        timeout=TIMEOUT,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
 def recognized_person_name(face_status: dict | None) -> str:
     """Mesma lógica do value_template que o HA usava pro sensor
     'iCSee Pessoa Reconhecida': ignora 'Desconhecido', ordena por

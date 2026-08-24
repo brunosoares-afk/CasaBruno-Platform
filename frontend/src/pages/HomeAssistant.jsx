@@ -13,6 +13,7 @@ import { callService } from "../api/homeassistantService";
 import { useJarvis } from "../modules/jarvis/context/JarvisContext";
 import { getFredStatus } from "../modules/jarvis/utils/fredStatus";
 import FredOrb from "../components/dashboard/FredOrb";
+import FredFaceRecognizer from "../components/dashboard/FredFaceRecognizer";
 
 import InicioView from "./homeassistant/views/InicioView";
 import CamerasView from "./homeassistant/views/CamerasView";
@@ -95,6 +96,7 @@ export default function HomeAssistant() {
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
             Principal
           </Typography>
+          <FredFaceRecognizer />
         </Box>
         <Chip
           label={online ? "HA Online" : "HA Offline"}
