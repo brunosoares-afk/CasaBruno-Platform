@@ -3,6 +3,7 @@ import { Box, Typography } from "@mui/material";
 import VideocamIcon from "@mui/icons-material/Videocam";
 
 import api from "../../services/api";
+import { useJarvis } from "../../modules/jarvis/context/JarvisContext";
 
 const CAPTURE_INTERVAL_MS = 8000;
 
@@ -18,6 +19,13 @@ export default function FredFaceRecognizer() {
     const streamRef = useRef(null);
     const [active, setActive] = useState(false);
     const [recognized, setRecognized] = useState(null);
+    const { speak } = useJarvis();
+
+    // Quem já foi cumprimentado nessa sessão da página — sem isso, uma
+    // oscilação normal do reconhecimento (frame passa de "Bruno" pra null
+    // e volta) faria o Fred repetir "Olá Bruno" a cada 8s enquanto a
+    // pessoa fica parada ali. Reseta sozinho só recarregando a página.
+    const greetedRef = useRef(new Set());
 
     useEffect(() => {
         let cancelled = false;
@@ -64,7 +72,15 @@ export default function FredFaceRecognizer() {
                 form.append("file", blob, "frame.jpg");
                 try {
                     const res = await api.post("/web-recognition", form);
-                    if (!cancelled) setRecognized(res.data.recognized);
+                    const name = res.data.recognized;
+                    if (cancelled) return;
+
+                    setRecognized(name);
+
+                    if (name && !greetedRef.current.has(name)) {
+                        greetedRef.current.add(name);
+                        speak(`Olá ${name}! Tudo bem? Em que posso ser útil?`);
+                    }
                 } catch {
                     // Falha pontual (backend fora, etc.) — tenta de novo
                     // no próximo ciclo, não precisa de retry aqui.

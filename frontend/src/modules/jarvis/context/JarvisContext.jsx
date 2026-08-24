@@ -103,6 +103,27 @@ export function JarvisProvider({ children }) {
 
     }, [voice]);
 
+    // Fala um texto fora do fluxo de conversa (sem esperar comando nenhum) —
+    // usado hoje pela saudação do reconhecimento facial web
+    // (FredFaceRecognizer). Pausa "processing" igual à fala normal, pra não
+    // brigar com a escuta contínua de wake word enquanto toca.
+    const speak = useCallback(async (text) => {
+        setProcessing("speaking");
+        try {
+            const blob = await speakText(text, voice);
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            audioRef.current = audio;
+            await new Promise((resolve) => {
+                audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+                audio.onerror = () => resolve();
+                audio.play().catch(resolve);
+            });
+        } finally {
+            setProcessing(null);
+        }
+    }, [voice]);
+
     const { supported, status: listenStatus, listenNow, primeCaptureNext, error: micError } = useWakeWordListener({
         wakeWords,
         enabled: micEnabled && processing === null,
@@ -123,6 +144,7 @@ export function JarvisProvider({ children }) {
         wakeWords,
         setWakeWords,
         handleCommand,
+        speak,
         supported,
         listenStatus,
         listenNow,
