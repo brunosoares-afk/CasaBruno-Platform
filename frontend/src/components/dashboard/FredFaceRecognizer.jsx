@@ -19,6 +19,7 @@ export default function FredFaceRecognizer() {
     const streamRef = useRef(null);
     const [active, setActive] = useState(false);
     const [recognized, setRecognized] = useState(null);
+    const [unknownVisitor, setUnknownVisitor] = useState(false);
     const { speak } = useJarvis();
 
     // Quem já foi cumprimentado nessa sessão da página — sem isso, uma
@@ -26,6 +27,13 @@ export default function FredFaceRecognizer() {
     // e volta) faria o Fred repetir "Olá Bruno" a cada 8s enquanto a
     // pessoa fica parada ali. Reseta sozinho só recarregando a página.
     const greetedRef = useRef(new Set());
+
+    // Mesma ideia, só que pra visitante desconhecido — só puxa papo uma
+    // vez por sessão, não a cada ciclo de 8s. Não cadastra rosto nenhum
+    // sozinho (isso continua exigindo Gerência → Rostos, decisão de um
+    // humano da casa) — só conversa, ver
+    // [[casa-bruno-unknown-visitor-greeting-2026-08-23]].
+    const greetedUnknownRef = useRef(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -72,14 +80,19 @@ export default function FredFaceRecognizer() {
                 form.append("file", blob, "frame.jpg");
                 try {
                     const res = await api.post("/web-recognition", form);
-                    const name = res.data.recognized;
+                    const { recognized: name, face_detected } = res.data;
                     if (cancelled) return;
 
                     setRecognized(name);
 
                     if (name && !greetedRef.current.has(name)) {
                         greetedRef.current.add(name);
+                        setUnknownVisitor(false);
                         speak(`Olá ${name}! Tudo bem? Em que posso ser útil?`);
+                    } else if (!name && face_detected && !greetedUnknownRef.current) {
+                        greetedUnknownRef.current = true;
+                        setUnknownVisitor(true);
+                        speak("Oi! Ainda não te conheço, mas seja bem-vindo. Eu sou o Fred, o assistente daqui. Posso te ajudar com alguma coisa?");
                     }
                 } catch {
                     // Falha pontual (backend fora, etc.) — tenta de novo
@@ -108,6 +121,11 @@ export default function FredFaceRecognizer() {
                     {recognized && (
                         <Typography variant="body2" color="text.secondary">
                             Oi, {recognized}
+                        </Typography>
+                    )}
+                    {!recognized && unknownVisitor && (
+                        <Typography variant="body2" color="text.secondary">
+                            Visitante não reconhecido
                         </Typography>
                     )}
                 </>
