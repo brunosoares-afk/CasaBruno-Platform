@@ -238,7 +238,17 @@ async def _call_ha(domain: str, service: str, data: dict):
 
 
 async def _push(title: str, message: str):
-    await _call_ha("notify", MOBILE_APP_SERVICE, {"title": title, "message": message})
+    """Canal do app companion do HA — HA foi desinstalado por completo
+    (ver [[casa-bruno-ha-full-uninstall-2026-08-20]]), então essa chamada
+    sempre falha agora. Sem o try/except, a exceção subia e abortava a
+    coroutine inteira ANTES de chegar no notify_service.notify (WhatsApp)
+    ou em ações reais depois dele — foi assim que o alerta de rosto
+    desconhecido e a abertura de portão por placa pararam de funcionar
+    de vez, silenciosamente, desde o desligamento do HA."""
+    try:
+        await _call_ha("notify", MOBILE_APP_SERVICE, {"title": title, "message": message})
+    except Exception:
+        logger.exception("Push via HA falhou (canal morto desde a remoção do HA)")
 
 
 async def _announce(message: str):
