@@ -103,7 +103,17 @@ def camera_proxy(entity_id: str):
             media_type=r.headers.get("Content-Type", "image/jpeg"),
         )
 
-    r = requests.get(f"{GO2RTC_URL}/api/frame.jpeg", params={"src": stream}, timeout=10)
+    # A câmera_fundo (Yoosee, UDP-only — ver [[casa-bruno-plate-detect-fix-2026-08-17]])
+    # é consistentemente lenta pro go2rtc extrair um frame via WebRTC —
+    # medido entre 10s e 17s em uso normal, não é falha passageira. O
+    # timeout de 10s daqui vinha estourando quase toda chamada, e sem
+    # try/except isso virava 500 puro pro frontend, que mostrava "Câmera
+    # indisponível" mesmo com a câmera 100% online. 20s cobre o pior caso
+    # observado; 404 em vez de 500 se mesmo assim estourar.
+    try:
+        r = requests.get(f"{GO2RTC_URL}/api/frame.jpeg", params={"src": stream}, timeout=20)
+    except Exception:
+        return Response(status_code=404)
 
     return Response(
         content=r.content,
