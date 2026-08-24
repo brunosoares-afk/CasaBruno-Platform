@@ -9,6 +9,7 @@ import Network from "./Network";
 import Docker from "./Docker";
 import Mikrotik from "./Mikrotik";
 import Rostos from "./Rostos";
+import Placas from "./Placas";
 import Settings from "./Settings";
 
 const VIEWS = {
@@ -17,6 +18,7 @@ const VIEWS = {
     docker: Docker,
     mikrotik: Mikrotik,
     rostos: Rostos,
+    placas: Placas,
     configuracoes: Settings,
 };
 
@@ -124,6 +126,7 @@ export default function Gerencia() {
                 <Tab value="docker" label="Docker" />
                 <Tab value="mikrotik" label="MikroTik" />
                 <Tab value="rostos" label="Rostos" />
+                <Tab value="placas" label="Placas" />
                 <Tab value="configuracoes" label="Configurações" />
             </Tabs>
 

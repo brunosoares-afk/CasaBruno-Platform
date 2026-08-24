@@ -5,6 +5,7 @@ from app.routers.mikrotik import router as mikrotik_router
 from app.routers.docker import router as docker_router
 from app.routers.network import router as network_router, start_packet_loss_monitor
 from app.routers.detection import router as detection_router
+from app.routers.plates import router as plates_router
 from app.services.scheduler_service import start_scheduler
 from app.services.ha_websocket_service import start_ha_websocket_relay
 from app.services.automations_service import start_automations
@@ -86,6 +87,7 @@ app.include_router(mikrotik_router)
 app.include_router(docker_router)
 app.include_router(network_router)
 app.include_router(detection_router)
+app.include_router(plates_router)
 app.include_router(scenes_router)
 app.include_router(automations_router)
 app.include_router(fred_router)

@@ -76,8 +76,8 @@ AUTOMATIONS = [
     },
     {
         "key": "placa_abre_portao",
-        "label": "Placa OVI8D97 abre o portão",
-        "description": "Abre o portão e avisa quando a câmera Yoosee reconhece a placa alvo.",
+        "label": "Placa de confiança abre o portão",
+        "description": "Abre o portão e avisa quando a câmera Yoosee reconhece uma placa cadastrada em Gerência → Placas.",
     },
     {
         "key": "chegada_reconhecimento_facial",
@@ -344,7 +344,10 @@ async def _rotina_conversa_taiane(new_state: dict):
 
 
 # ==========================================================
-# 7. placa_ovi8d97_abre_portao
+# 7. placa_confiavel_abre_portao — antes só reconhecia uma placa
+# hardcoded (OVI8D97); agora compara contra a lista de placas de
+# confiança gerenciável em Gerência → Placas (trusted_plates_service),
+# ver [[casa-bruno-trusted-plates-2026-08-23]].
 # ==========================================================
 
 async def _placa_abre_portao(new_state: dict):
@@ -354,20 +357,24 @@ async def _placa_abre_portao(new_state: dict):
     if _in_cooldown("portao_placa"):
         return
 
+    attrs = new_state.get("attributes", {})
+    nome = attrs.get("matched_name") or "desconhecida"
+    placa = attrs.get("matched_plate") or "?"
+
     _start_cooldown("portao_placa", 5 * 60)
     await _push(
-        "🚗 Placa OVI8D97 reconhecida",
-        "A câmera Yoosee reconheceu o carro preto OVI8D97. Abrindo o portão.",
+        f"🚗 Placa de {nome} reconhecida",
+        f"A câmera Yoosee reconheceu o carro de {nome} ({placa}). Abrindo o portão.",
     )
     await notify_service.notify(
-        "Placa OVI8D97 reconhecida pela câmera Yoosee. Abrindo o portão."
+        f"Placa de {nome} ({placa}) reconhecida pela câmera Yoosee. Abrindo o portão."
     )
 
     result = await _call_device("switch", "turn_on", "switch.portao_casa_switch_1")
     if not result.get("success"):
         await _push(
             "⚠️ Não consegui abrir o portão",
-            "Placa OVI8D97 reconhecida, mas o comando local pro portão falhou.",
+            f"Placa de {nome} ({placa}) reconhecida, mas o comando local pro portão falhou.",
         )
 
 

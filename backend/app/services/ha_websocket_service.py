@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timezone
 
 from app.core.android.manager import android
-from app.services import alexa_service, detection_service, presence_service, tuya_service
+from app.services import alexa_service, detection_service, presence_service, trusted_plates_service, tuya_service
 
 logger = logging.getLogger("ha_websocket_service")
 logger.setLevel(logging.INFO)
@@ -38,6 +38,11 @@ PRESENCE_MANAGED_ENTITY_IDS = set(presence_service.MAC_TO_ENTITY.values())
 # um dict/set de processo, sem fila/broker novo.
 _snapshot_by_id: dict[str, dict] = {}
 _clients: set = set()
+
+# Timestamp da última vez que uma placa de confiança bateu — o detector
+# não sabe mais disso desde que o match virou responsabilidade daqui
+# (trusted_plates_service), ver [[casa-bruno-trusted-plates-2026-08-23]].
+_last_trusted_match: dict = {"at": None}
 
 # Assinantes internos (mesmo processo) de cada mudança de estado — usado
 # pelo automations_service pra reagir sem precisar de um segundo WebSocket
@@ -131,21 +136,36 @@ def _build_detection_entities() -> dict[str, dict]:
         }
 
     if plate is not None:
+        # Antes o match era feito dentro do plate-detect-yoosee contra um
+        # único TARGET_PLATE hardcoded — agora o detector só reporta OCR
+        # bruto (plates_detected) e a comparação contra a lista de placas
+        # de confiança (editável em Gerência → Placas) acontece aqui, ver
+        # [[casa-bruno-trusted-plates-2026-08-23]].
+        trusted_match = trusted_plates_service.match(plate.get("plates_detected", []))
+        if trusted_match:
+            _last_trusted_match["at"] = now
+
         entities["sensor.yoosee_placa_detectada"] = {
             "entity_id": "sensor.yoosee_placa_detectada",
             "state": plate.get("last_text") or "Nenhuma",
             "attributes": {
                 "camera_online": plate.get("camera_online"),
-                "matched_target": plate.get("matched_target"),
-                "last_match": plate.get("last_match"),
+                "matched_target": bool(trusted_match),
+                "matched_name": trusted_match["name"] if trusted_match else None,
+                "matched_plate": trusted_match["plate"] if trusted_match else None,
+                "last_match": _last_trusted_match["at"],
                 "friendly_name": "Yoosee Placa Detectada",
             },
             "last_updated": now,
         }
         entities["binary_sensor.yoosee_placa_alvo_detectada"] = {
             "entity_id": "binary_sensor.yoosee_placa_alvo_detectada",
-            "state": "on" if plate.get("matched_target") else "off",
-            "attributes": {"friendly_name": "Yoosee Placa Alvo Detectada"},
+            "state": "on" if trusted_match else "off",
+            "attributes": {
+                "matched_name": trusted_match["name"] if trusted_match else None,
+                "matched_plate": trusted_match["plate"] if trusted_match else None,
+                "friendly_name": "Yoosee Placa Alvo Detectada",
+            },
             "last_updated": now,
         }
         # Detecção geral de pessoa/veículo (YOLOv4-tiny), ver
