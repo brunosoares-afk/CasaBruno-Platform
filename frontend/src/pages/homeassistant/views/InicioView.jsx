@@ -10,7 +10,6 @@ import { useActivity } from "../../../hooks/useActivity";
 import { useHomeAssistantAreas, useHomeAssistantScenes, cameraSnapshotUrl } from "../../../modules/jarvis/services/haApi";
 
 import WeatherCard from "../../../components/dashboard/WeatherCard";
-import FredCharacterCard from "../../../components/dashboard/FredCharacterCard";
 import SwitchCard from "../../../components/dashboard/SwitchCard";
 import MediaPlayerCard from "../../../components/dashboard/MediaPlayerCard";
 import HeaderStats from "../../../components/dashboard/HeaderStats";
@@ -97,11 +96,6 @@ export default function InicioView({ byId, activateScene, playPause, mediaNext, 
 
   return (
     <>
-      {/* FRED: personagem em destaque, primeira coisa da tela */}
-      <Box sx={{ mb: 3 }}>
-        <FredCharacterCard />
-      </Box>
-
       {/* PREVISÃO DO TEMPO: topo */}
       <Box sx={{ mb: 3 }}>
         <WeatherCard data={weatherData} />

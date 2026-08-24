@@ -10,6 +10,9 @@ import {
 
 import { useHomeAssistantStates } from "../hooks/useHomeAssistantStates";
 import { callService } from "../api/homeassistantService";
+import { useJarvis } from "../modules/jarvis/context/JarvisContext";
+import { getFredStatus } from "../modules/jarvis/utils/fredStatus";
+import FredOrb from "../components/dashboard/FredOrb";
 
 import InicioView from "./homeassistant/views/InicioView";
 import CamerasView from "./homeassistant/views/CamerasView";
@@ -35,6 +38,9 @@ export default function HomeAssistant() {
 
   const { data: states, isLoading, isError, refetch } = useHomeAssistantStates();
   const [tab, setTab] = useState("inicio");
+
+  const { supported, micEnabled, listenStatus, processing, micError } = useJarvis();
+  const fredStatus = getFredStatus({ supported, micEnabled, listenStatus, processing, micError });
 
   const byId = useMemo(() => {
     const map = {};
@@ -84,9 +90,12 @@ export default function HomeAssistant() {
   return (
     <>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-        <Typography variant="h4" sx={{ fontWeight: 700 }}>
-          Principal
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <FredOrb state={fredStatus.state} size={36} />
+          <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            Principal
+          </Typography>
+        </Box>
         <Chip
           label={online ? "HA Online" : "HA Offline"}
           color={online ? "success" : "error"}
