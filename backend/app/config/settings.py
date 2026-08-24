@@ -65,6 +65,20 @@ class Settings:
     )
 
     # =====================================================
+    # GEMINI (papo livre — ver [[casa-bruno-voice-quality-2026-08-21]]:
+    # modelo local pequeno demais alucina/ignora contexto em conversa
+    # aberta; comandos de dispositivo continuam 100% locais via Ollama,
+    # só o fallback de conversa livre usa isto)
+    # =====================================================
+
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
+    GEMINI_MODEL = os.getenv(
+        "GEMINI_MODEL",
+        "gemini-3.6-flash"
+    )
+
+    # =====================================================
     # KNOWLEDGE (busca externa tipo Wikipedia)
     # =====================================================
 

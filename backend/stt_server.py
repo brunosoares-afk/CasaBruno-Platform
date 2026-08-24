@@ -1,10 +1,16 @@
 """
 Servidor Wyoming de STT usando sherpa-onnx direto, em substituição ao addon
-core_whisper do HA — nesta CPU (Intel Core i3 M350, sem AVX) o addon trava
-com SIGILL tanto no backend faster-whisper/CTranslate2 quanto no backend
-transformers/PyTorch. O backend sherpa (onnxruntime) não trava, mas o addon
-tem um bug de seleção de API pra modelos Whisper (chama from_transducer em
-vez de from_whisper). Este servidor chama a API certa diretamente.
+core_whisper do HA — na CPU antiga (Intel Core i3 M350, sem AVX) o addon
+travava com SIGILL tanto no backend faster-whisper/CTranslate2 quanto no
+backend transformers/PyTorch. O backend sherpa (onnxruntime) não trava, mas
+o addon tem um bug de seleção de API pra modelos Whisper (chama
+from_transducer em vez de from_whisper). Este servidor chama a API certa
+diretamente.
+
+A troca de hardware de 2026-08-18 trouxe uma CPU com AVX (AMD FX-4100),
+então o modelo "tiny" (escolhido só pra rodar em qualquer CPU) deu lugar ao
+"base" — mesma arquitetura sherpa-onnx, só um checkpoint maior e mais
+preciso, sem trade-off técnico agora que o AVX não é mais um limite.
 
 Fala o protocolo Wyoming de verdade (asr.Transcribe/Transcript,
 audio.AudioStart/AudioChunk/AudioStop, info.Describe/Info) — qualquer
@@ -24,18 +30,18 @@ from wyoming.event import Event
 from wyoming.info import AsrModel, AsrProgram, Attribution, Describe, Info
 from wyoming.server import AsyncEventHandler, AsyncServer
 
-MODEL_DIR = "/opt/CasaBruno-Platform/backend/stt_models/sherpa-onnx-whisper-tiny"
+MODEL_DIR = "/opt/CasaBruno-Platform/backend/stt_models/sherpa-onnx-whisper-base"
 HOST = "127.0.0.1"
 PORT = 10301
 
 logging.basicConfig(level=logging.INFO)
 _LOGGER = logging.getLogger("fred-stt-server")
 
-_LOGGER.info("Carregando modelo sherpa-onnx (whisper tiny int8)...")
+_LOGGER.info("Carregando modelo sherpa-onnx (whisper base int8)...")
 _recognizer = sherpa_onnx.OfflineRecognizer.from_whisper(
-    encoder=f"{MODEL_DIR}/tiny-encoder.int8.onnx",
-    decoder=f"{MODEL_DIR}/tiny-decoder.int8.onnx",
-    tokens=f"{MODEL_DIR}/tiny-tokens.txt",
+    encoder=f"{MODEL_DIR}/base-encoder.int8.onnx",
+    decoder=f"{MODEL_DIR}/base-decoder.int8.onnx",
+    tokens=f"{MODEL_DIR}/base-tokens.txt",
     language="pt",
     task="transcribe",
     num_threads=2,
@@ -46,14 +52,14 @@ _WYOMING_INFO = Info(
     asr=[
         AsrProgram(
             name="fred-sherpa-whisper",
-            description="Whisper tiny via sherpa-onnx (substitui core_whisper nesta CPU sem AVX)",
+            description="Whisper base via sherpa-onnx (CPU com AVX desde a troca de hardware de 2026-08-18)",
             attribution=Attribution(name="CasaBruno", url="https://github.com/k2-fsa/sherpa-onnx"),
             installed=True,
             version="1.0.0",
             models=[
                 AsrModel(
-                    name="tiny-int8",
-                    description="Whisper tiny int8 (sherpa-onnx)",
+                    name="base-int8",
+                    description="Whisper base int8 (sherpa-onnx)",
                     attribution=Attribution(name="OpenAI", url="https://github.com/openai/whisper"),
                     installed=True,
                     languages=["pt"],

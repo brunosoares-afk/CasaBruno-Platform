@@ -1,9 +1,18 @@
 import logging
+import time
 
 from app.core.homeassistant.client import ha_client
 from app.services import detection_service, ha_websocket_service, tuya_service
 
 logger = logging.getLogger(__name__)
+
+# Janela de "pessoa reconhecida por último" pro canal voz/web (Fase 6) —
+# sem isso, qualquer pergunta feita um instante fora do quadro da câmera
+# (ex: sentado na mesa, câmera não pega o ângulo) caía direto em
+# "desconhecido" e fragmentava toda a memória/perfil da pessoa real.
+# 10min é generoso o bastante pra cobrir uma sessão de conversa inteira.
+_LAST_RECOGNIZED_TTL = 600
+_last_recognized = {"name": None, "at": 0.0}
 
 
 def get_homeassistant_status():
@@ -38,11 +47,19 @@ def get_recognized_person():
     # o HA só fazia polling do mesmo endpoint e reexpunha como sensor.
     try:
         name = detection_service.recognized_person_name(detection_service.get_face_status())
-        if name in (None, "Ninguém", "Desconhecido"):
-            return "desconhecido"
-        return name
+        if name not in (None, "Ninguém", "Desconhecido"):
+            _last_recognized["name"] = name
+            _last_recognized["at"] = time.monotonic()
+            return name
     except Exception:
-        return "desconhecido"
+        pass
+
+    # Sem reconhecimento agora — usa quem foi visto por último dentro da
+    # janela, em vez de cair direto em "desconhecido" (ver _LAST_RECOGNIZED_TTL).
+    if _last_recognized["name"] and (time.monotonic() - _last_recognized["at"]) < _LAST_RECOGNIZED_TTL:
+        return _last_recognized["name"]
+
+    return "desconhecido"
 
 
 def get_config():

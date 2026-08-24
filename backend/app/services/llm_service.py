@@ -1,9 +1,13 @@
+import logging
+
 import requests
 
 from app.config.settings import settings
-from app.services import memory_service
+from app.services import gemini_service, memory_service
 from app.services.expressions import pick
 from app.services.homeassistant_service import get_states
+
+logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = (
     "Você é o FRED, o assistente da Casa Bruno (moram lá Bruno e Taiane), "
@@ -72,6 +76,20 @@ class LLMService:
         return ". ".join(parts)
 
     def _generate(self, system: str, prompt: str, timeout: int = 60) -> str:
+        # Papo livre passa pro Gemini quando configurado — o modelo local
+        # (qwen2.5:1.5b, escolhido só por caber na CPU sem AVX de antes)
+        # ignora pergunta/alucina/vaza prompt em conversa aberta (ver
+        # [[casa-bruno-voice-quality-2026-08-21]]). Cai pro Ollama local se
+        # o Gemini falhar (sem internet, cota, etc.) — nunca some a resposta.
+        if gemini_service.is_configured():
+            try:
+                return gemini_service.generate(system, prompt, timeout=min(timeout, 30))
+            except Exception:
+                logger.warning("Gemini falhou, caindo pro Ollama local", exc_info=True)
+
+        return self._generate_local(system, prompt, timeout)
+
+    def _generate_local(self, system: str, prompt: str, timeout: int = 60) -> str:
         response = requests.post(
             f"{self.url}/api/generate",
             json={
