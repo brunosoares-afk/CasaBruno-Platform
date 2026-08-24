@@ -13,7 +13,12 @@ _MEDIA_SERVICE_TO_COMMAND = {
 class HomeAssistantServices:
 
     def list(self):
-        return ha_client.services()
+        # Mesmo motivo do devices.py: HA não existe mais, ha_client.services()
+        # sempre falha, sem try/except isso derrubava a rota inteira.
+        try:
+            return ha_client.services()
+        except Exception:
+            return []
 
     def call(
         self,
@@ -46,11 +51,20 @@ class HomeAssistantServices:
             ok = self._call_alexa_media(entity_id, service, data)
             result = {"success": ok, "local": "alexa"}
         else:
-            result = ha_client.call_service(
-                domain,
-                service,
-                data
-            )
+            # Fallback pra qualquer entidade que não caia em nenhum dos
+            # roteamentos locais acima (tuya/ptz/scenes/alexa) — hoje
+            # nenhuma entidade viva bate aqui, mas se uma nova cair sem
+            # roteamento dedicado, isso batia direto no HA morto e
+            # explodia sem mensagem útil (mesma armadilha do _push, ver
+            # [[casa-bruno-push-notify-bug-2026-08-23]]).
+            try:
+                result = ha_client.call_service(
+                    domain,
+                    service,
+                    data
+                )
+            except Exception as e:
+                result = {"success": False, "error": str(e)}
 
         logger.info(
             "homeassistant",

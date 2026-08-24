@@ -4,7 +4,14 @@ from app.core.homeassistant.client import ha_client
 class HomeAssistantDevices:
 
     def all(self):
-        return ha_client.states()
+        # HA foi desinstalado por completo (ver [[casa-bruno-ha-full-uninstall-2026-08-20]]),
+        # então ha_client.states() sempre levanta ConnectionError agora —
+        # sem o try/except, todo caller (summary/by_domain/get) explodia
+        # junto em vez de simplesmente ver uma lista vazia de entidades.
+        try:
+            return ha_client.states()
+        except Exception:
+            return []
 
     def summary(self):
 

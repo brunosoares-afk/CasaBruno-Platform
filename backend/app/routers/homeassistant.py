@@ -90,8 +90,13 @@ def camera_proxy(entity_id: str):
 
     if not stream:
         # Sem mapeamento conhecido — cai pro proxy do HA como antes,
-        # em vez de simplesmente falhar pra qualquer câmera nova.
-        r = homeassistant.client.get_raw(f"/camera_proxy/{entity_id}")
+        # em vez de simplesmente falhar pra qualquer câmera nova. HA não
+        # existe mais, então isso sempre levanta ConnectionError agora —
+        # 404 em vez de 500 sem corpo.
+        try:
+            r = homeassistant.client.get_raw(f"/camera_proxy/{entity_id}")
+        except Exception:
+            return Response(status_code=404)
         return Response(
             content=r.content,
             status_code=r.status_code,
@@ -121,7 +126,10 @@ def entity_picture_proxy(entity_id: str):
 
     protocol = "https" if homeassistant.client.ssl else "http"
     url = f"{protocol}://{homeassistant.client.host}:{homeassistant.client.port}{picture_path}"
-    r = requests.get(url, headers=homeassistant.client.headers(), timeout=10)
+    try:
+        r = requests.get(url, headers=homeassistant.client.headers(), timeout=10)
+    except Exception:
+        return Response(status_code=404)
 
     return Response(
         content=r.content,
