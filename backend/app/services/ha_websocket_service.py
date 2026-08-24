@@ -86,10 +86,12 @@ def _now_iso() -> str:
 
 
 def _build_detection_entities() -> dict[str, dict]:
-    """Monta as mesmas 5 entidades que o HA produzia via platform: rest
-    em cima de :8091 (rosto) e :8092 (placa) — mesmo entity_id, mesmo
-    formato de state/attributes, pra nenhum consumidor do frontend
-    precisar mudar."""
+    """Monta as entidades sintéticas em cima de :8091 (rosto) e :8092
+    (placa) — as 5 originais preservam o mesmo entity_id/formato que o HA
+    produzia via platform: rest, pra nenhum consumidor do frontend
+    precisar mudar; as 2 novas (pessoa/veículo, ver
+    [[casa-bruno-yoosee-object-detection-2026-08-23]]) seguem o mesmo
+    padrão de shape."""
 
     face = detection_service.get_face_status()
     plate = detection_service.get_plate_status()
@@ -144,6 +146,29 @@ def _build_detection_entities() -> dict[str, dict]:
             "entity_id": "binary_sensor.yoosee_placa_alvo_detectada",
             "state": "on" if plate.get("matched_target") else "off",
             "attributes": {"friendly_name": "Yoosee Placa Alvo Detectada"},
+            "last_updated": now,
+        }
+        # Detecção geral de pessoa/veículo (YOLOv4-tiny), ver
+        # [[casa-bruno-yoosee-object-detection-2026-08-23]] — mesmo /status
+        # do plate-detect-yoosee, campos novos ao lado dos de sempre.
+        entities["binary_sensor.yoosee_pessoa_detectada"] = {
+            "entity_id": "binary_sensor.yoosee_pessoa_detectada",
+            "state": "on" if plate.get("people_detected") else "off",
+            "attributes": {
+                "device_class": "occupancy",
+                "count": plate.get("people_count", 0),
+                "friendly_name": "Yoosee Pessoa Detectada",
+            },
+            "last_updated": now,
+        }
+        entities["sensor.yoosee_veiculos_detectados"] = {
+            "entity_id": "sensor.yoosee_veiculos_detectados",
+            "state": str(plate.get("vehicle_count", 0)),
+            "attributes": {
+                "vehicles": plate.get("vehicles", []),
+                "plates_detected": plate.get("plates_detected", []),
+                "friendly_name": "Yoosee Veículos Detectados",
+            },
             "last_updated": now,
         }
 
