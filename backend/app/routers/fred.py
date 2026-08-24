@@ -4,6 +4,7 @@ from app.api.auth import require_gerencia_session
 from app.core.config.config import config
 from app.services.fred_service import fred
 from app.services import memory_service, voice_service, notify_service
+from app.services.llm_service import llm_service
 
 router = APIRouter(
     tags=["FRED"]
@@ -113,6 +114,18 @@ async def speak(
         content=wav_bytes,
         media_type="audio/wav",
     )
+
+
+# ======================================================
+# SAUDAÇÃO PERSONALIZADA (reconhecimento facial pela câmera web)
+# ======================================================
+# Público de propósito, mesmo motivo do /fred/config — a página onde
+# isso é chamado (Principal) não tem login. Ver
+# [[casa-bruno-profile-aware-greeting-2026-08-23]].
+
+@router.get("/fred/greet/{person}")
+def greet(person: str):
+    return {"text": llm_service.greet(person)}
 
 
 

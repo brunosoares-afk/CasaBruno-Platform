@@ -20,6 +20,15 @@ SYSTEM_PROMPT = (
     "uma vez — nunca escreva o que a outra pessoa diria."
 )
 
+GREETING_SYSTEM_PROMPT = (
+    "Você é o FRED, o assistente da Casa Bruno. Você acabou de reconhecer "
+    "visualmente uma pessoa chegando perto da câmera. Cumprimente ela de "
+    "forma natural e breve (1 ou 2 frases curtas), como quem já a conhece — "
+    "sem soar como se estivesse lendo um resumo de perfil, sem mencionar "
+    "'reconhecimento facial'/'câmera'/'perfil'. Português do Brasil, tom de "
+    "voz casual. Só a sua fala, direto, sem introduções."
+)
+
 SUMMARY_SYSTEM_PROMPT = (
     "Você atualiza um perfil curto (3 a 5 frases) sobre uma pessoa da casa, "
     "combinando o resumo anterior com as conversas recentes. Foque em fatos "
@@ -165,6 +174,27 @@ class LLMService:
             f"Conversas recentes:\n{dialogue}\n\nNovo resumo:"
         )
         return self._generate(SUMMARY_SYSTEM_PROMPT, prompt, timeout=90)
+
+    def greet(self, person: str) -> str:
+        """Saudação personalizada pro reconhecimento facial pela câmera web
+        (ver [[casa-bruno-profile-aware-greeting-2026-08-23]]) — usa o
+        mesmo perfil/resumo de _build_context, mas não loga isso como uma
+        'fala' da pessoa (não é uma pergunta dela, é o Fred puxando papo
+        sozinho ao reconhecê-la) e não conta pro turn_count/resumo."""
+        profile = memory_service.get_profile(person)
+
+        system = GREETING_SYSTEM_PROMPT
+        if profile.get("summary"):
+            system += f"\n\nO que você sabe sobre {person}: {profile['summary']}"
+        else:
+            system += f"\n\nVocê ainda não conhece muito sobre {person} além do nome — não invente detalhes."
+
+        try:
+            text = self._generate(system, f"Cumprimente {person}, que acabou de chegar.", timeout=20)
+            return text.strip() or f"Olá {person}! Tudo bem? Em que posso ser útil?"
+        except Exception:
+            logger.warning("Falha ao gerar saudação personalizada pra %s", person, exc_info=True)
+            return f"Olá {person}! Tudo bem? Em que posso ser útil?"
 
     def ask(self, prompt: str, person: str = UNKNOWN_PERSON, timeout: int = 60) -> str:
         if not prompt:

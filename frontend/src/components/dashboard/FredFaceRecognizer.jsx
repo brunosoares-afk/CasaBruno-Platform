@@ -4,6 +4,7 @@ import VideocamIcon from "@mui/icons-material/Videocam";
 
 import api from "../../services/api";
 import { useJarvis } from "../../modules/jarvis/context/JarvisContext";
+import { greetPerson } from "../../modules/jarvis/services/fredApi";
 
 const CAPTURE_INTERVAL_MS = 8000;
 
@@ -88,7 +89,12 @@ export default function FredFaceRecognizer() {
                     if (name && !greetedRef.current.has(name)) {
                         greetedRef.current.add(name);
                         setUnknownVisitor(false);
-                        speak(`Olá ${name}! Tudo bem? Em que posso ser útil?`);
+                        // Saudação personalizada (perfil/resumo da pessoa,
+                        // ver [[casa-bruno-profile-aware-greeting-2026-08-23]]);
+                        // cai pro texto fixo de sempre se o backend falhar.
+                        greetPerson(name)
+                            .then((text) => speak(text))
+                            .catch(() => speak(`Olá ${name}! Tudo bem? Em que posso ser útil?`));
                     } else if (!name && face_detected && !greetedUnknownRef.current) {
                         greetedUnknownRef.current = true;
                         setUnknownVisitor(true);
