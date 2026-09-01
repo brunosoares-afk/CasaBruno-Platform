@@ -26,15 +26,20 @@ export default function FredFaceRecognizer() {
     // Quem já foi cumprimentado nessa sessão da página — sem isso, uma
     // oscilação normal do reconhecimento (frame passa de "Bruno" pra null
     // e volta) faria o Fred repetir "Olá Bruno" a cada 8s enquanto a
-    // pessoa fica parada ali. Reseta sozinho só recarregando a página.
-    const greetedRef = useRef(new Set());
+    // pessoa fica parada ali. Guardado em sessionStorage (não só em ref)
+    // porque este componente remonta toda vez que troca de aba no Layout
+    // ou que o HomeAssistant.jsx recai no gate de isLoading — um ref puro
+    // resetava a cada remount e reabria o ciclo de saudação+mic a cada 8s.
+    const greetedRef = useRef(
+        new Set(JSON.parse(sessionStorage.getItem("fred_greeted_people") || "[]"))
+    );
 
     // Mesma ideia, só que pra visitante desconhecido — só puxa papo uma
     // vez por sessão, não a cada ciclo de 8s. Não cadastra rosto nenhum
     // sozinho (isso continua exigindo Gerência → Rostos, decisão de um
     // humano da casa) — só conversa, ver
     // [[casa-bruno-unknown-visitor-greeting-2026-08-23]].
-    const greetedUnknownRef = useRef(false);
+    const greetedUnknownRef = useRef(sessionStorage.getItem("fred_greeted_unknown") === "1");
 
     useEffect(() => {
         let cancelled = false;
@@ -88,6 +93,10 @@ export default function FredFaceRecognizer() {
 
                     if (name && !greetedRef.current.has(name)) {
                         greetedRef.current.add(name);
+                        sessionStorage.setItem(
+                            "fred_greeted_people",
+                            JSON.stringify([...greetedRef.current])
+                        );
                         setUnknownVisitor(false);
                         // Saudação personalizada (perfil/resumo da pessoa,
                         // ver [[casa-bruno-profile-aware-greeting-2026-08-23]]);
@@ -97,6 +106,7 @@ export default function FredFaceRecognizer() {
                             .catch(() => speak(`Olá ${name}! Tudo bem? Em que posso ser útil?`));
                     } else if (!name && face_detected && !greetedUnknownRef.current) {
                         greetedUnknownRef.current = true;
+                        sessionStorage.setItem("fred_greeted_unknown", "1");
                         setUnknownVisitor(true);
                         speak("Oi! Ainda não te conheço, mas seja bem-vindo. Eu sou o Fred, o assistente daqui. Posso te ajudar com alguma coisa?");
                     }

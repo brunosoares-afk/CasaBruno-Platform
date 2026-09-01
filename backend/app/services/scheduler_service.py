@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from app.integrations.google import calendar as google_calendar
-from app.services import memory_service, notify_service, weather_service
+from app.services import memory_service, notify_service, scenes_service, weather_service
 from app.services.homeassistant_service import get_states
 from app.services.fred_memory import memory as fred_memory
 
@@ -83,6 +83,7 @@ async def _weather_job():
 
         message = f"Bom dia! Hoje o tempo está {weather['label']}"
         message += f", {round(temp)}°C." if temp is not None else "."
+        scenes_service._announce_house(message)
         await notify_service.notify(message)
     except Exception:
         logger.exception("Falha no job de previsão do tempo")
@@ -99,10 +100,12 @@ async def _agenda_job():
         if not google_calendar.is_connected():
             if not _agenda_not_connected_notified:
                 _agenda_not_connected_notified = True
-                await notify_service.notify(
+                aviso = (
                     "Ainda não tenho sua Agenda do Google conectada, então não "
                     "consigo avisar sobre amanhã — configure em Gerência quando puder."
                 )
+                scenes_service._announce_house(aviso)
+                await notify_service.notify(aviso)
             return
 
         tomorrow = (datetime.now(timezone.utc).astimezone() + timedelta(days=1)).strftime("%Y-%m-%d")
@@ -113,11 +116,15 @@ async def _agenda_job():
         ]
 
         if not tomorrow_events:
-            await notify_service.notify("Nenhum compromisso na agenda pra amanhã.")
+            sem_evento = "Nenhum compromisso na agenda pra amanhã."
+            scenes_service._announce_house(sem_evento)
+            await notify_service.notify(sem_evento)
             return
 
         titles = "; ".join(e.get("summary", "(sem título)") for e in tomorrow_events)
-        await notify_service.notify(f"Pra amanhã na agenda: {titles}.")
+        agenda_msg = f"Pra amanhã na agenda: {titles}."
+        scenes_service._announce_house(agenda_msg)
+        await notify_service.notify(agenda_msg)
     except Exception:
         logger.exception("Falha no job de agenda")
 
@@ -143,7 +150,9 @@ async def _lamp_job():
         names = ", ".join(
             s.get("attributes", {}).get("friendly_name", s["entity_id"]) for s in lights_on
         )
-        sent = await notify_service.notify(f"A luz {names} ficou ligada de dia, quer que eu apague?")
+        pergunta_luz = f"A luz {names} ficou ligada de dia, quer que eu apague?"
+        scenes_service._announce_house(pergunta_luz)
+        sent = await notify_service.notify(pergunta_luz)
 
         # Fase 8 — guarda o que "sim" deve fazer se ele responder, senão
         # a pergunta é só decorativa (a resposta nunca desligava nada de
@@ -166,6 +175,7 @@ async def _reminders_job():
             text = f"Lembrete: {reminder['name']}."
             if reminder.get("description"):
                 text += f" {reminder['description']}"
+            scenes_service._announce_house(text)
             sent = await notify_service.notify(text)
             if sent:
                 memory_service.mark_reminder_notified(reminder["id"])
@@ -188,7 +198,9 @@ async def _weekly_summary_job():
         total = stats["total"]
 
         if total == 0:
-            await notify_service.notify("Resumo da semana: nenhum comando pra mim essa semana.")
+            vazio = "Resumo da semana: nenhum comando pra mim essa semana."
+            scenes_service._announce_house(vazio)
+            await notify_service.notify(vazio)
             return
 
         by_channel = ", ".join(
@@ -196,6 +208,7 @@ async def _weekly_summary_job():
             for channel, count in stats["by_channel"].items()
         )
         message = f"Resumo da semana: {total} comandos ({by_channel})."
+        scenes_service._announce_house(message)
         await notify_service.notify(message)
     except Exception:
         logger.exception("Falha no job de resumo semanal")

@@ -252,10 +252,15 @@ async def _push(title: str, message: str):
 
 
 async def _announce(message: str):
-    """Antes falava pela Alexa (notify.alexa_taiane_speak) — abandonado
-    junto com a integração Alexa (Fase 5, ver [[casa-bruno-ha-removal-phases-4-6]]),
-    agora avisa por WhatsApp (texto + voz) via notify_service, mesmo
-    caminho já usado pelos avisos proativos do scheduler_service."""
+    """Fala pelos dois dispositivos Alexa da casa (reinstalado a pedido do
+    usuário 2026-09-01 — tinha sido abandonado na Fase 5, ver
+    [[casa-bruno-ha-removal-phases-4-6]] — mas só pra saudações, que são
+    os dois únicos chamadores desta função; alertas de segurança/portão
+    continuam só por WhatsApp) e também avisa por WhatsApp (texto + voz)
+    via notify_service, mesmo caminho já usado pelos avisos proativos do
+    scheduler_service. _announce_house já trata falha internamente
+    (retorna False, não lança), então não precisa de try/except aqui."""
+    scenes_service._announce_house(message)
     await notify_service.notify(message)
 
 
@@ -303,13 +308,10 @@ async def _seguranca_desconhecido_casa_vazia(new_state: dict):
     if any(_state_of(p) != "not_home" for p in PERSON_ENTITIES):
         return
 
-    await _push(
-        "⚠️ Rosto desconhecido detectado",
-        "A câmera da sala reconheceu alguém não cadastrado, e ninguém da família está em casa.",
-    )
-    await notify_service.notify(
-        "Atenção: a câmera da sala reconheceu um rosto desconhecido e ninguém da família está em casa."
-    )
+    mensagem = "Atenção: a câmera da sala reconheceu um rosto desconhecido e ninguém da família está em casa."
+    await _push("⚠️ Rosto desconhecido detectado", mensagem)
+    scenes_service._announce_house(mensagem)
+    await notify_service.notify(mensagem)
 
 
 # ==========================================================
@@ -362,20 +364,16 @@ async def _placa_abre_portao(new_state: dict):
     placa = attrs.get("matched_plate") or "?"
 
     _start_cooldown("portao_placa", 5 * 60)
-    await _push(
-        f"🚗 Placa de {nome} reconhecida",
-        f"A câmera Yoosee reconheceu o carro de {nome} ({placa}). Abrindo o portão.",
-    )
-    await notify_service.notify(
-        f"Placa de {nome} ({placa}) reconhecida pela câmera Yoosee. Abrindo o portão."
-    )
+    mensagem = f"Placa de {nome} ({placa}) reconhecida pela câmera Yoosee. Abrindo o portão."
+    await _push(f"🚗 Placa de {nome} reconhecida", mensagem)
+    scenes_service._announce_house(mensagem)
+    await notify_service.notify(mensagem)
 
     result = await _call_device("switch", "turn_on", "switch.portao_casa_switch_1")
     if not result.get("success"):
-        await _push(
-            "⚠️ Não consegui abrir o portão",
-            f"Placa de {nome} ({placa}) reconhecida, mas o comando local pro portão falhou.",
-        )
+        falha = f"Placa de {nome} ({placa}) reconhecida, mas o comando local pro portão falhou."
+        await _push("⚠️ Não consegui abrir o portão", falha)
+        scenes_service._announce_house(falha)
 
 
 # ==========================================================
@@ -404,13 +402,13 @@ async def _btv13_perdeu_adb(new_state: dict):
     if not _is_enabled("btv13_perdeu_adb"):
         return
 
+    mensagem = "O BTV13 perdeu a conexão ADB de novo. Precisa reativar manualmente na tela da TV."
     await _push(
         "📺 BTV13 perdeu a conexão ADB",
         "A porta 5555 caiu de novo (depuração de rede desligada). Precisa reativar manualmente na tela da TV — não tem como resolver remotamente.",
     )
-    await notify_service.notify(
-        "O BTV13 perdeu a conexão ADB de novo. Precisa reativar manualmente na tela da TV."
-    )
+    scenes_service._announce_house(mensagem)
+    await notify_service.notify(mensagem)
 
 
 # ==========================================================
@@ -425,12 +423,13 @@ async def _casa_vazia_saida(new_state: dict):
     _casa_vazia_disparada = True
     result = await asyncio.to_thread(scenes_service.run, "script.cena_saida_de_casa")
     if result.get("success"):
-        await notify_service.notify("Casa vazia — rodei a cena 'Saída de Casa' sozinho (ar/luz desligados).")
+        mensagem = "Casa vazia — rodei a cena 'Saída de Casa' sozinho (ar/luz desligados)."
+        scenes_service._announce_house(mensagem)
+        await notify_service.notify(mensagem)
     else:
-        await _push(
-            "⚠️ Casa vazia, mas a cena de saída falhou",
-            "Detectei a casa vazia mas não consegui desligar tudo sozinho — confira manualmente.",
-        )
+        falha = "Detectei a casa vazia mas não consegui desligar tudo sozinho — confira manualmente."
+        await _push("⚠️ Casa vazia, mas a cena de saída falhou", falha)
+        scenes_service._announce_house(falha)
 
 
 # ==========================================================
