@@ -6,6 +6,7 @@ const MIC_ERROR_LABELS = {
     "service-not-allowed": "Microfone bloqueado",
     "audio-capture": "Sem microfone",
     "network": "Sem rede de voz",
+    "low-confidence": "Não entendi direito, pode repetir?",
 };
 
 // Mapeia o estado bruto do useJarvis() (voz/processamento) para o estado

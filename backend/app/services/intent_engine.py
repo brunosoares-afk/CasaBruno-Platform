@@ -46,9 +46,7 @@ class IntentEngine:
     # "abrir o portão" também já é turn_on).
     NATURAL_PHRASES = [
         (["acende a cozinha", "acender a cozinha"], ("turn_on", "light.lampada_cozinha")),
-        (["liga a luz"], ("turn_on", "light.lampada_cozinha")),
         (["apaga tudo", "apagar tudo"], ("turn_off", "light.lampada_cozinha")),
-        (["esta escuro", "está escuro"], ("turn_on", "light.lampada_cozinha")),
         (["fecha a garagem", "fechar a garagem", "abre a garagem", "abrir a garagem", "abre o portao", "abre o portão"], ("turn_on", "switch.portao_casa_switch_1")),
         (["quero assistir filme", "vou assistir filme", "assistir filme"], ("turn_on", "script.cena_assistir_tv")),
         (["modo dormir", "boa noite"], ("turn_on", "script.cena_boa_noite")),
@@ -103,6 +101,45 @@ class IntentEngine:
             if self.contains_any(cmd, ["nao", "não", "deixa", "deixa assim", "nada"]):
                 memory.forget(person, "pending_confirmation")
                 return {"type": "confirmation_declined"}
+
+        # ==================================================
+        # NEGAÇÃO ("não liga a luz", "não precisa ligar o ventilador") —
+        # contains_any() é substring puro e ignorava o "não" inteiro,
+        # batia só no verbo de ação e executava o oposto do pedido. Não
+        # tenta inverter a ação sozinho (ambíguo — "não desliga ainda"
+        # não quer dizer "liga"), só recusa agir aqui e deixa cair pro
+        # bate-papo livre (LLM), que entende negação de verdade em vez
+        # de arriscar fazer o contrário do que a pessoa pediu.
+        # ==================================================
+
+        if "nao" in cmd.split() and self.contains_any(
+            cmd,
+            ["ligar", "desligar", "acender", "apagar", "ativar", "desativar", "abrir", "fechar",
+             "liga", "desliga", "acende", "apaga"],
+        ):
+            return {"type": "unknown"}
+
+        # ==================================================
+        # "liga a luz" sozinho assume a cozinha (comportamento de sempre),
+        # mas a frase também é substring de "liga a luz da sala"/"liga a
+        # luz do quarto" — sem essa guarda, qualquer cômodo pedido acabava
+        # acendendo a cozinha por engano. Se outro cômodo for mencionado,
+        # deixa cair pro registry.search() genérico logo abaixo, que já
+        # sabe achar (ou dizer que não achou) o dispositivo do cômodo
+        # certo em vez de acender o errado.
+        # ==================================================
+
+        OUTROS_COMODOS = ["sala", "quarto", "banheiro", "varanda", "escritorio", "garagem"]
+
+        # "desliga a luz"/"desliga a luz da cozinha" também contêm "liga a
+        # luz" como substring ("de-SLIGA A LUZ") — sem essa exclusão, pedir
+        # pra desligar acabava ligando por engano.
+        if (
+            self.contains_any(cmd, ["liga a luz", "esta escuro"])
+            and not self.contains_any(cmd, OUTROS_COMODOS)
+            and not self.contains_any(cmd, ["desliga", "apaga"])
+        ):
+            return {"type": "device_action", "action": "turn_on", "entity_id": "light.lampada_cozinha"}
 
         # ==================================================
         # LINGUAGEM NATURAL (frases fixas do dia a dia que usam
@@ -291,8 +328,16 @@ class IntentEngine:
         # miolo "sist" (as-SIST-ente/as-SIST-ant/as-SIST-ing) — raro
         # aparecer por acaso numa frase sobre a casa, e o pior caso de
         # falso positivo é só responder "Home Assistant está online"
-        # fora de contexto.
-        if self.contains_any(cmd, ["home assistant", "status home assistant"]) or "sist" in cmd:
+        # fora de contexto. Exceto que "sist" também aparece embutido no
+        # verbo "assistir" (as-SIST-ir) — "vou assistir uma série" batia
+        # aqui e respondia status do HA em vez de qualquer coisa sobre o
+        # pedido real. Excluído explicitamente, sem enfraquecer o match
+        # solto de "sist" pros outros casos de STT embaralhado.
+        _FORMAS_ASSISTIR = ["assistir", "assisto", "assiste", "assistem", "assistimos", "assistindo", "assisti"]
+
+        if self.contains_any(cmd, ["home assistant", "status home assistant"]) or (
+            "sist" in cmd and not self.contains_any(cmd, _FORMAS_ASSISTIR)
+        ):
             return {
                 "type": "homeassistant_status"
             }

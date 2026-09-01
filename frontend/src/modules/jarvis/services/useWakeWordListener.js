@@ -2,6 +2,14 @@ import { useEffect, useRef, useState } from "react";
 
 const DEFAULT_WAKE_WORDS = ["jarvis", "fred"];
 const NO_SPEECH_TIMEOUT_MS = 5000;
+// Abaixo disso a Web Speech API já está sinalizando que não tem certeza da
+// transcrição — sem essa checagem, qualquer "achismo" de baixa confiança
+// (ruído, sotaque, fala cortada) era mandado pro Fred como se fosse certo,
+// e ele processava/executava o texto errado sem avisar ninguém. confidence
+// vem 0 em alguns navegadores/engines que não implementam isso de verdade
+// (não é "confiança zero", é "não informado") — só rejeita quando o valor é
+// realmente maior que 0 e ainda assim baixo.
+const MIN_CONFIDENCE = 0.5;
 
 // Erros esperados/transitórios do ciclo normal (silêncio, ou o abort que a
 // gente mesmo dispara pelo timeout) — não valem a pena mostrar como falha
@@ -102,9 +110,15 @@ export function useWakeWordListener({
 
             capture.onresult = (event) => {
                 clearTimeout(captureTimeoutRef.current);
+                const result = event.results[0][0];
+                const command = result.transcript.trim();
+                if (!command) return;
+                if (result.confidence > 0 && result.confidence < MIN_CONFIDENCE) {
+                    setError("low-confidence");
+                    return;
+                }
                 setError(null);
-                const command = event.results[0][0].transcript.trim();
-                if (command) onWake(command);
+                onWake(command);
             };
 
             capture.onend = () => {
