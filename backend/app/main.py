@@ -40,9 +40,15 @@ app = FastAPI(
     version="2.0.0",
     description="CasaBruno Platform API"
 )
+# Antes allow_origins=["*"] — qualquer site na internet podia usar o
+# navegador de quem estivesse na rede de casa/tailscale como proxy pra
+# chamar essa API (a maioria das rotas não pede login por design). Restrito
+# às próprias redes do Bruno (casa, escritório, tailnet, localhost),
+# qualquer porta — cobre o frontend em qualquer host:porta que ele use sem
+# abrir pra origem nenhuma de fora. Ver auditoria de 2026-09-02.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|192\.168\.(2|10)\.\d{1,3}|100\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?$",
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
