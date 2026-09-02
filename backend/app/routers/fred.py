@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel
 from app.api.auth import require_gerencia_session
+from app.api.security import block_untrusted_network
 from app.core.config.config import config
 from app.services.fred_service import fred
 from app.services import memory_service, voice_service, notify_service
@@ -63,7 +64,7 @@ def status():
 # EXECUÇÃO
 # ======================================================
 
-@router.post("/execute")
+@router.post("/execute", dependencies=[Depends(block_untrusted_network)])
 def execute(
     data: FredCommand
 ):
@@ -83,7 +84,7 @@ def execute(
 # CHAT ALIAS
 # ======================================================
 
-@router.post("/ask")
+@router.post("/ask", dependencies=[Depends(block_untrusted_network)])
 def ask(
     data: FredCommand
 ):
@@ -143,7 +144,7 @@ def get_fred_config():
     return {**DEFAULT_FRED_CONFIG, **(config.get("fred") or {})}
 
 
-@router.post("/fred/config")
+@router.post("/fred/config", dependencies=[Depends(block_untrusted_network)])
 def set_fred_config(data: FredSettings):
     current = {**DEFAULT_FRED_CONFIG, **(config.get("fred") or {})}
     if data.wakeWords is not None:
@@ -159,7 +160,7 @@ def set_fred_config(data: FredSettings):
 # MEMÓRIA
 # ======================================================
 
-@router.get("/memory/{person}")
+@router.get("/memory/{person}", dependencies=[Depends(block_untrusted_network)])
 def memory(person: str):
 
     profile = memory_service.get_profile(person)
@@ -178,7 +179,7 @@ def memory(person: str):
 # ATIVIDADE (dashboard)
 # ======================================================
 
-@router.get("/activity")
+@router.get("/activity", dependencies=[Depends(block_untrusted_network)])
 def activity(limit: int = 10, hours: int = 24):
 
     return {
