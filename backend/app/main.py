@@ -48,7 +48,7 @@ app = FastAPI(
 # abrir pra origem nenhuma de fora. Ver auditoria de 2026-09-02.
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|192\.168\.(2|10)\.\d{1,3}|100\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?$",
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|192\.168\.(2|10)\.\d{1,3}|100\.\d{1,3}\.\d{1,3}\.\d{1,3}|hda08fx9s7v\.sn\.mynetname\.net)(:\d+)?$",
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
