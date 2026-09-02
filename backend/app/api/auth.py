@@ -18,6 +18,33 @@ TOKEN_TTL_SECONDS = 24 * 60 * 60
 # ao reiniciar o backend, forçando novo login (aceitável nesse contexto).
 _sessions = {}
 
+# Lockout de tentativas de login — a senha da Gerência é um PIN curto, sem
+# isso dava pra tentar força-bruta sem limite nenhum. Ver auditoria de
+# 2026-09-02. Em memória, reseta ao reiniciar o backend (aceitável, mesmo
+# raciocínio das sessões acima).
+_failed_attempts = []
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_WINDOW_SECONDS = 15 * 60  # janela deslizante: também é o tempo efetivo de bloqueio
+
+
+def _check_login_lockout():
+    now = time.time()
+    _failed_attempts[:] = [t for t in _failed_attempts if now - t < LOGIN_WINDOW_SECONDS]
+    if len(_failed_attempts) >= MAX_LOGIN_ATTEMPTS:
+        wait_min = LOGIN_WINDOW_SECONDS // 60
+        raise HTTPException(
+            status_code=429,
+            detail=f"Muitas tentativas incorretas — aguarde até {wait_min} min e tente de novo",
+        )
+
+
+def _register_login_failure():
+    _failed_attempts.append(time.time())
+
+
+def _register_login_success():
+    _failed_attempts.clear()
+
 
 def _hash_password(password: str, salt: str) -> str:
     return hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 200_000).hex()
@@ -57,12 +84,16 @@ def require_gerencia_session(authorization: str = Header(default=""), x_api_key:
 
 @router.post("/login")
 def login(data: dict):
+    _check_login_lockout()
+
     password = data.get("password", "")
     auth = _get_or_seed_auth()
     candidate = _hash_password(password, auth["salt"])
     if not secrets.compare_digest(candidate, auth["password_hash"]):
+        _register_login_failure()
         raise HTTPException(status_code=401, detail="Senha incorreta")
 
+    _register_login_success()
     _cleanup_sessions()
     token = secrets.token_urlsafe(32)
     _sessions[token] = time.time() + TOKEN_TTL_SECONDS
