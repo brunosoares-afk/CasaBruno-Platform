@@ -1,5 +1,6 @@
 import asyncio
 import io
+import logging
 import shutil
 import subprocess
 import tempfile
@@ -11,6 +12,10 @@ from wyoming.asr import Transcribe, Transcript
 from wyoming.audio import AudioChunk, AudioStart, AudioStop, wav_to_chunks
 from wyoming.client import AsyncTcpClient
 from wyoming.tts import Synthesize, SynthesizeVoice
+
+from app.services import gemini_service
+
+logger = logging.getLogger(__name__)
 
 # O addon oficial core_whisper (app_core_whisper, porta 10300) trava com
 # SIGILL nesta CPU (Intel Core i3 M350, sem AVX) em qualquer backend
@@ -48,6 +53,13 @@ DEFAULT_TTS_VOICE = "pt_BR-cadu-medium"
 
 def _is_kokoro_voice(voice: str) -> bool:
     return voice.startswith(("pm_", "pf_"))
+
+
+async def gemini_tts(text: str) -> bytes:
+    """Texto -> wav (bytes) via Gemini TTS (voz 'Kore'). Ver
+    gemini_service.synthesize() pro request em si."""
+
+    return await asyncio.to_thread(gemini_service.synthesize, text)
 
 
 def _run_ffmpeg(args: list) -> None:
@@ -144,6 +156,17 @@ async def kokoro_tts(text: str, voice: str) -> bytes:
 
 
 async def tts_dispatch(text: str, voice: str) -> bytes:
+    # Gemini TTS é o padrão agora (decisão do usuário 2026-09-04, aceitando
+    # os ~3-4s de latência extra por frase vs. Piper/Kokoro locais — ver
+    # [[casa-bruno-gemini-voz-completa-2026-09-04]]). Cai pro motor local
+    # (respeitando a voz escolhida) se o Gemini falhar, mesmo padrão do
+    # llm_service pro texto — nunca deixa o Fred mudo.
+    if gemini_service.is_configured():
+        try:
+            return await gemini_tts(text)
+        except Exception:
+            logger.warning("Gemini TTS falhou, caindo pro motor local", exc_info=True)
+
     if _is_kokoro_voice(voice):
         return await kokoro_tts(text, voice)
     return await piper_tts(text, voice)

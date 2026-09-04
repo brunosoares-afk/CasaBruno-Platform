@@ -5,16 +5,18 @@ import os
 import time
 from pathlib import Path
 
-from app.services import voice_service
+from app.services import gemini_service, voice_service
 
 AUDIO_DIR = Path("/opt/CasaBruno-Platform/backend/tts_audio")
 PUBLIC_BASE_URL = "https://hda08fx9s7v.sn.mynetname.net/alexa/audio"
 
-# Fica deliberadamente no Piper (não no Kokoro/DEFAULT_TTS_VOICE) — a
-# Alexa derruba o skill se o webhook não responder em poucos segundos, e
-# o Kokoro nessa CPU é ~2x mais lento que tempo real (ver voice_service.py),
-# rápido demais pra arriscar aqui mesmo que soe pior.
+# A Alexa derruba o skill se o webhook não responder em poucos segundos —
+# por isso o Gemini TTS entra com timeout curto (5s) aqui, diferente dos
+# outros canais. Se estourar isso ou falhar, cai pro Piper local (nunca
+# o Kokoro, que já era descartado por ser ~2x mais lento que tempo real
+# nesta CPU — ver voice_service.py). Ver [[casa-bruno-gemini-voz-completa-2026-09-04]].
 TTS_VOICE = "pt_BR-cadu-medium"
+GEMINI_TIMEOUT = 5
 
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -40,7 +42,10 @@ def synthesize(text):
     mp3_path = str(AUDIO_DIR / f"{file_id}.mp3")
 
     try:
-        wav_bytes = asyncio.run(voice_service.piper_tts(text, TTS_VOICE))
+        try:
+            wav_bytes = gemini_service.synthesize(text, timeout=GEMINI_TIMEOUT)
+        except Exception:
+            wav_bytes = asyncio.run(voice_service.piper_tts(text, TTS_VOICE))
 
         with open(raw_path, "wb") as f:
             f.write(wav_bytes)
