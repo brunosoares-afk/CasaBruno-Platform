@@ -3,7 +3,7 @@ import logging
 import requests
 
 from app.config.settings import settings
-from app.services import gemini_service, memory_service
+from app.services import crm_mcp_client, gemini_service, memory_service
 from app.services.expressions import pick
 from app.services.homeassistant_service import get_states
 
@@ -18,6 +18,14 @@ SYSTEM_PROMPT = (
     "Português do Brasil, frases curtas, sem markdown. Se não souber (notícia, "
     "clima, dado em tempo real), diga isso em vez de inventar. Só a sua fala, "
     "uma vez — nunca escreva o que a outra pessoa diria."
+)
+
+CRM_SYSTEM_PROMPT_EXTRA = (
+    "\n\nVocê também tem acesso a um CRM (ferramentas de contato/tarefa/negociação). "
+    "Use quando fizer sentido de verdade — Bruno comentar sobre um cliente/lead novo, "
+    "pedir pra anotar algo sobre um contato, ou perguntar sobre follow-ups pendentes. "
+    "Procure o contato (find_contact) antes de criar um novo, pra não duplicar. "
+    "Não force o uso disso em papo que não tem nada a ver com clientes/negócio."
 )
 
 GREETING_SYSTEM_PROMPT = (
@@ -209,10 +217,29 @@ class LLMService:
             # segue sem o contexto de perfil/histórico.
             system, prefix = SYSTEM_PROMPT, ""
 
+        # CRM só entra no papo livre (não em greet/summarize, que são tarefas
+        # internas específicas) — e só se o servidor MCP realmente respondeu,
+        # pra nunca travar/piorar uma resposta por causa de um serviço externo.
+        crm_disponivel = False
         try:
-            answer = self._generate(system, f"{prefix}{prompt}", timeout=timeout)
+            crm_disponivel = crm_mcp_client.disponivel()
+        except Exception:
+            logger.warning("Checagem de disponibilidade do CRM falhou", exc_info=True)
+
+        try:
+            if crm_disponivel:
+                answer = gemini_service.generate_with_tools(
+                    system + CRM_SYSTEM_PROMPT_EXTRA,
+                    f"{prefix}{prompt}",
+                    crm_mcp_client.declaracoes_para_gemini(),
+                    crm_mcp_client.chamar_ferramenta,
+                    timeout=min(timeout, 30),
+                )
+            else:
+                answer = self._generate(system, f"{prefix}{prompt}", timeout=timeout)
             answer = answer or "Não consegui pensar em uma resposta."
-        except requests.exceptions.RequestException:
+        except Exception:
+            logger.warning("Gemini falhou em ask()", exc_info=True)
             return "Não consegui pensar agora, tenta de novo daqui a pouco."
 
         # Falha ao gravar/atualizar a memória não pode derrubar uma
