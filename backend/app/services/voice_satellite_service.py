@@ -45,7 +45,7 @@ WAKE_PORT = 10400
 
 # Sem STT dedicado a essa janela ainda: usa o mesmo Whisper Wyoming local
 # (voice_service.transcribe) que o WhatsApp já usa pra notas de voz.
-LLM_TIMEOUT = 180  # mesmo valor de app/routers/whatsapp.py — Ollama sem AVX é lento
+LLM_TIMEOUT = 180  # mesmo valor de app/routers/whatsapp.py — teto de segurança, chamada real ao Gemini é limitada a 30s
 
 COMMAND_WINDOW_S = 6.0
 CHUNK_SEND_BYTES = 2048

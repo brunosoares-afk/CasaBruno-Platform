@@ -1,8 +1,5 @@
 import logging
 
-import requests
-
-from app.config.settings import settings
 from app.services import crm_mcp_client, gemini_service, memory_service
 from app.services.expressions import pick
 from app.services.homeassistant_service import get_states
@@ -50,10 +47,6 @@ UNKNOWN_PERSON = "desconhecido"
 
 class LLMService:
 
-    def __init__(self):
-        self.url = settings.OLLAMA_URL
-        self.model = getattr(settings, "OLLAMA_MODEL", "llama3.2:1b")
-
     def _house_snapshot(self) -> str:
         # Resumo bem curto de propósito — nessa CPU (sem AVX, ver memória
         # casa-bruno-cpu-no-avx) cada token de prompt custa caro, e listar
@@ -93,36 +86,11 @@ class LLMService:
         return ". ".join(parts)
 
     def _generate(self, system: str, prompt: str, timeout: int = 60) -> str:
-        # Papo livre passa pro Gemini quando configurado — o modelo local
-        # (qwen2.5:1.5b, escolhido só por caber na CPU sem AVX de antes)
-        # ignora pergunta/alucina/vaza prompt em conversa aberta (ver
-        # [[casa-bruno-voice-quality-2026-08-21]]). Cai pro Ollama local se
-        # o Gemini falhar (sem internet, cota, etc.) — nunca some a resposta.
-        if gemini_service.is_configured():
-            try:
-                return gemini_service.generate(system, prompt, timeout=min(timeout, 30))
-            except Exception:
-                logger.warning("Gemini falhou, caindo pro Ollama local", exc_info=True)
-
-        return self._generate_local(system, prompt, timeout)
-
-    def _generate_local(self, system: str, prompt: str, timeout: int = 60) -> str:
-        response = requests.post(
-            f"{self.url}/api/generate",
-            json={
-                "model": self.model,
-                "system": system,
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "stop": ["\nUsuário", "\nFred:", "\nVocê:", "\nPergunta"]
-                },
-            },
-            timeout=timeout,
-        )
-        response.raise_for_status()
-        data = response.json()
-        return data.get("response", "").strip()
+        # 100% Gemini — sem fallback pro Ollama local (ver
+        # [[casa-bruno-voice-quality-2026-08-21]] pro motivo original da
+        # migração). Se o Gemini falhar, propaga o erro pra quem chamou
+        # decidir a mensagem de fallback, em vez de responder pior.
+        return gemini_service.generate(system, prompt, timeout=min(timeout, 30))
 
     def _knowledge_snippet(self, command: str) -> str:
         # Mesmo motivo de _house_snapshot: orçamento de token curto

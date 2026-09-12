@@ -161,11 +161,28 @@ async def tts_dispatch(text: str, voice: str) -> bytes:
     # [[casa-bruno-gemini-voz-completa-2026-09-04]]). Cai pro motor local
     # (respeitando a voz escolhida) se o Gemini falhar, mesmo padrão do
     # llm_service pro texto — nunca deixa o Fred mudo.
+    #
+    # Antes de cair pro local, tenta mais uma vez: na prática quase toda
+    # falha aqui é um TimeoutError isolado do Gemini (~1-2x/dia, sem
+    # padrão claro), não uma queda real do serviço — e cair pro Piper/
+    # Kokoro troca a voz do Fred no meio da conversa, o que o Bruno notou
+    # e pediu pra reduzir (2026-09-12). Um retry rápido resolve a maioria
+    # sem herdar o custo de uma retentativa em rate-limit (429), que quase
+    # nunca se resolve em 1s e só atrasa a resposta à toa.
     if gemini_service.is_configured():
         try:
             return await gemini_tts(text)
-        except Exception:
-            logger.warning("Gemini TTS falhou, caindo pro motor local", exc_info=True)
+        except Exception as first_err:
+            is_rate_limited = "429" in str(first_err)
+            if is_rate_limited:
+                logger.warning("Gemini TTS com rate limit (429), caindo pro motor local", exc_info=True)
+            else:
+                logger.warning("Gemini TTS falhou, tentando mais uma vez antes do motor local", exc_info=True)
+                await asyncio.sleep(1)
+                try:
+                    return await gemini_tts(text)
+                except Exception:
+                    logger.warning("Gemini TTS falhou de novo, caindo pro motor local", exc_info=True)
 
     if _is_kokoro_voice(voice):
         return await kokoro_tts(text, voice)

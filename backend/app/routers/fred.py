@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Response
 from pydantic import BaseModel
 from app.api.auth import require_gerencia_session
-from app.api.security import block_untrusted_network
+from app.api.security import block_untrusted_network, require_api_key
 from app.core.config.config import config
 from app.services.fred_service import fred
 from app.services import memory_service, voice_service, notify_service
+from app.services.fred_memory import memory as fred_memory
 from app.services.llm_service import llm_service
+from datetime import datetime
 
 router = APIRouter(
     tags=["FRED"]
@@ -201,3 +203,52 @@ def activity(limit: int = 10, hours: int = 24):
 async def notify(data: NotifyRequest):
     sent = await notify_service.notify(data.text)
     return {"success": sent}
+
+
+# ======================================================
+# ALERTA DE LINK (CCR1016)
+# ======================================================
+# Chamado pelo netwatch do CCR1016 (192.168.2.1) via /tool fetch — pelo
+# túnel WireGuard (192.168.99.3, não a VLAN20-Sogra: o ARP direto do
+# roteador pra 192.168.10.10 falha, achado em 2026-09-12) — na queda e na
+# volta do link PPPoE com a operadora.
+# Autenticado por X-Api-Key (não por sessão) porque quem chama é o
+# roteador, não um navegador logado.
+# A duração é calculada aqui (não no RouterOS, cuja aritmética de tempo é
+# frágil) guardando o instante da queda no fred_memory.
+# Na queda o roteador ainda alcança esse endpoint (é rota direta pelo
+# túnel, não passa pelo PPPoE) mas o envio real do WhatsApp pode falhar
+# mesmo assim, pois o bridge também depende do mesmo link caído pra falar
+# com os servidores do WhatsApp — nesse caso o aviso de volta (evento
+# "up", com a duração) é o que garante a notificação.
+
+class LinkAlertRequest(BaseModel):
+
+    event: str  # "down" ou "up"
+
+
+@router.post("/fred/alert/link", dependencies=[Depends(require_api_key)])
+async def alert_link(data: LinkAlertRequest, background_tasks: BackgroundTasks):
+    now = datetime.now()
+
+    if data.event == "down":
+        fred_memory.remember(None, "link_down_since", now.isoformat())
+        text = f"⚠️ A internet caiu às {now.strftime('%H:%M')}."
+    else:
+        since_raw = fred_memory.recall(None, "link_down_since")
+        text = f"✅ A internet voltou às {now.strftime('%H:%M')}"
+        try:
+            since = datetime.fromisoformat(since_raw) if since_raw else None
+            if since:
+                dur_min = round((now - since).total_seconds() / 60)
+                text += f" (ficou {dur_min} min fora)"
+        except (TypeError, ValueError):
+            pass
+        text += "."
+        fred_memory.forget(None, "link_down_since")
+
+    # Dispara em background: o /tool fetch do RouterOS desiste antes dos ~10s+
+    # que o notify_service leva (síntese de voz do Kokoro é lenta nesta CPU),
+    # e reportaria "falha" mesmo quando a mensagem sai normalmente depois.
+    background_tasks.add_task(notify_service.notify, text)
+    return {"success": True, "queued": True}

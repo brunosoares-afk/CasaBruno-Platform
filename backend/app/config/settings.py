@@ -51,24 +51,11 @@ class Settings:
     # não daqui. Não reintroduzir HA_URL/HA_TOKEN aqui.
 
     # =====================================================
-    # OLLAMA
-    # =====================================================
-
-    OLLAMA_URL = os.getenv(
-        "OLLAMA_URL",
-        "http://127.0.0.1:11434"
-    )
-
-    OLLAMA_MODEL = os.getenv(
-        "OLLAMA_MODEL",
-        "llama3.2:1b"
-    )
-
-    # =====================================================
-    # GEMINI (papo livre — ver [[casa-bruno-voice-quality-2026-08-21]]:
-    # modelo local pequeno demais alucina/ignora contexto em conversa
-    # aberta; comandos de dispositivo continuam 100% locais via Ollama,
-    # só o fallback de conversa livre usa isto)
+    # GEMINI (papo livre/saudação/resumo do Fred — ver
+    # [[casa-bruno-voice-quality-2026-08-21]] pro motivo original da
+    # migração. Desde 2026-09-05 é 100% Gemini, sem fallback pro Ollama
+    # local — comandos de dispositivo nunca passaram por LLM nenhum,
+    # são resolvidos por regra em intent_engine.py)
     # =====================================================
 
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")

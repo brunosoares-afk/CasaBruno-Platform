@@ -28,9 +28,9 @@ ALEXA_NOTIFY_ENTITY = "media_player.alexa_taiane"
 ALEXA_SKILL_ID = "amzn1.ask.skill.c305dea3-8c08-4164-9425-ea85717913cc"
 
 # Só usado no fluxo assíncrono (_answer_async): ninguém fica esperando
-# essa resposta na hora, então dá pra tolerar um cold start do Ollama
-# (modelo descarregado da memória por inatividade) sem cair no fallback
-# de erro à toa.
+# essa resposta na hora, então dá pra tolerar folga extra sem cair no
+# fallback de erro à toa (teto de segurança; llm_service já limita a
+# chamada real ao Gemini a 30s).
 ASYNC_LLM_TIMEOUT = 120
 
 
