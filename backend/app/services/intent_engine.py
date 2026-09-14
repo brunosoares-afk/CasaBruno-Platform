@@ -184,6 +184,10 @@ class IntentEngine:
                 action = "turn_off"
             elif self.contains_any(cmd, ["ligar", "liga", "acender", "acende", "ativar", "ativa", "abrir", "abre"]):
                 action = "turn_on"
+            elif self.contains_any(cmd, ["aumentar", "aumenta", "sobe", "sobre", "mais alto"]):
+                action = "volume_up"
+            elif self.contains_any(cmd, ["diminuir", "diminui", "abaixar", "abaixa", "baixa", "mais baixo"]):
+                action = "volume_down"
 
             if action:
                 # Prioridade (Fase 6.4): contexto recente da conversa >
@@ -194,6 +198,15 @@ class IntentEngine:
                     or memory_service.get_favorite_device(person)
                     or self.DEFAULT_PRONOUN_ENTITY
                 )
+                # "aumenta isso"/"abaixa isso" só faz sentido pra um
+                # media_player — se o último dispositivo referenciado (ou
+                # o favorito) for uma luz/interruptor, não força volume
+                # nele. Achado ao vivo 2026-09-14: o comentário deste
+                # bloco já prometia "aumenta isso" desde sempre, mas o
+                # código nunca teve os verbos de volume, só ligar/desligar
+                # — "aumenta isso" sempre caía direto pro papo livre.
+                if action in ("volume_up", "volume_down") and not entity_id.startswith("media_player."):
+                    entity_id = self.DEFAULT_PRONOUN_ENTITY
                 return {"type": "device_action", "action": action, "entity_id": entity_id}
 
         # ==================================================
@@ -224,7 +237,21 @@ class IntentEngine:
         if self.contains_any(cmd, ["que dia e hoje", "que dia e", "data de hoje", "dia da semana"]):
             return {"type": "time_query", "context": "date"}
 
-        if self.contains_any(cmd, ["clima atual", "tempo agora", "previsao do tempo", "previsão do tempo", "clima", "previsao", "previsão"]):
+        # "esta chovendo"/"vai chover" são jeitos naturais de perguntar o
+        # clima que não continham nenhuma das palavras de cima — caíam pro
+        # papo livre, e o LLM (sem dado de clima real no contexto dele,
+        # só casa/pessoas) respondia "olha pela janela" em vez de usar o
+        # weather_service de verdade que já existe e tem dado real.
+        # Achado ao vivo 2026-09-14.
+        if self.contains_any(
+            cmd,
+            [
+                "clima atual", "tempo agora", "previsao do tempo", "previsão do tempo",
+                "clima", "previsao", "previsão",
+                "chovendo", "vai chover", "vai fazer sol", "esta frio", "está frio",
+                "esta quente", "está quente", "esta ventando", "está ventando",
+            ],
+        ):
             return {"type": "weather_query"}
 
         if self.contains_any(cmd, ["como esta a casa", "como está a casa", "como vai a casa", "resumo da casa"]):
