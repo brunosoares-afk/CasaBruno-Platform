@@ -14,6 +14,11 @@ class DeviceRegistry:
         "status", "estado", "situacao", "situação", "qual", "quais",
         "ligar", "desligar", "acender", "apagar",
         "ativar", "desativar", "abrir", "fechar",
+        # Mesma lacuna do intent_engine.py (verbo no imperativo, como as
+        # pessoas realmente falam, nunca tinha sido excluído daqui —
+        # "liga"/"desliga" contavam como palavra de busca de verdade em
+        # vez de serem ignorados como os verbos no infinitivo já eram).
+        "liga", "desliga", "acende", "apaga", "ativa", "desativa", "abre", "fecha",
     }
 
     def __init__(self):

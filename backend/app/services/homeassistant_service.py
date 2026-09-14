@@ -2,7 +2,7 @@ import logging
 import time
 
 from app.core.homeassistant.client import ha_client
-from app.services import detection_service, ha_websocket_service, tuya_service
+from app.services import alexa_service, detection_service, ha_websocket_service, tuya_service
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +89,29 @@ def call_service(domain, service, entity_id):
             "service": service,
             "entity_id": entity_id,
             "result": {"local": "tuya"},
+        }
+
+    # Achado ao vivo 2026-09-14: comandos de volume ("sobe"/"abaixa o
+    # volume da tv/alexa") vinham daqui parar direto no ha_client morto
+    # (HA não existe mais desde [[casa-bruno-ha-full-uninstall-2026-08-20]])
+    # e sempre falhavam silenciosamente com "não consegui executar o
+    # comando" — mesma classe de bug do sweep em
+    # [[casa-bruno-push-notify-bug-2026-08-23]], só que esse site não
+    # tinha sido varrido ainda. media_player.* dos dois Echo (TV via
+    # Alexa, Alexa da Taiane) tem controle real pelo alexa-bridge.
+    if alexa_service.is_managed(entity_id) and domain == "media_player":
+        if service == "volume_up":
+            ok = alexa_service.volume_up(entity_id)
+        elif service == "volume_down":
+            ok = alexa_service.volume_down(entity_id)
+        else:
+            ok = False
+        return {
+            "success": ok,
+            "domain": domain,
+            "service": service,
+            "entity_id": entity_id,
+            "result": {"local": "alexa"},
         }
 
     # Import adiado só pra quebrar o ciclo (scenes_service importa esse

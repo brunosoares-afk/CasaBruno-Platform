@@ -47,7 +47,19 @@ class IntentEngine:
     NATURAL_PHRASES = [
         (["acende a cozinha", "acender a cozinha"], ("turn_on", "light.lampada_cozinha")),
         (["apaga tudo", "apagar tudo"], ("turn_off", "light.lampada_cozinha")),
-        (["fecha a garagem", "fechar a garagem", "abre a garagem", "abrir a garagem", "abre o portao", "abre o portão"], ("turn_on", "switch.portao_casa_switch_1")),
+        # "abre o portão" já cobria "portão", mas "fecha"/"fechar o portão"
+        # só existia com a palavra "garagem" — quem falasse "fecha o
+        # portão" (mesmo padrão de quem fala "abre o portão") caía em
+        # device_not_found. Achado testando ao vivo 2026-09-14.
+        (
+            [
+                "fecha a garagem", "fechar a garagem", "fecha o portao", "fechar o portao",
+                "fecha o portão", "fechar o portão",
+                "abre a garagem", "abrir a garagem", "abre o portao", "abrir o portao",
+                "abre o portão", "abrir o portão",
+            ],
+            ("turn_on", "switch.portao_casa_switch_1"),
+        ),
         (["quero assistir filme", "vou assistir filme", "assistir filme"], ("turn_on", "script.cena_assistir_tv")),
         (["modo dormir", "boa noite"], ("turn_on", "script.cena_boa_noite")),
         (["vou sair"], ("turn_on", "script.cena_saida_de_casa")),
@@ -240,7 +252,12 @@ class IntentEngine:
                 target = "todos"
             return {"type": "presence_query", "target": target}
 
-        if self.contains_any(cmd, ["bateria celular", "celular carregando", "temperatura celular"]):
+        # Antes exigia a frase exata "bateria celular" grudada (sem "do"/"o"
+        # no meio) — "bateria do celular" (jeito mais natural de falar) não
+        # batia e caía pro sensor_query genérico, que sempre falha porque
+        # não existe sensor de bateria de celular cadastrado como
+        # dispositivo da casa. Achado testando ao vivo 2026-09-14.
+        if "celular" in cmd and self.contains_any(cmd, ["bateria", "carregando", "temperatura"]):
             if "carregando" in cmd:
                 context = "charging"
             elif "temperatura" in cmd:
