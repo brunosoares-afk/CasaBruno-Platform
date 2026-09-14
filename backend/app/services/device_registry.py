@@ -39,10 +39,22 @@ class DeviceRegistry:
     def refresh(self):
         return self.load()
 
+    # Recarrega sempre, não só na primeira vez. Bug real achado ao vivo
+    # 2026-09-14: get_states() era uma chamada HTTP síncrona lenta pro HA
+    # (quando o HA ainda existia), então cachear em self.entities depois
+    # do primeiro load() fazia sentido. Desde a remoção do HA, get_states()
+    # despeja um snapshot em memória que os loops assíncronos (Tuya,
+    # detecção, presença) atualizam sozinhos o tempo todo — é O(1),
+    # não vale mais cachear. Com o cache antigo, se o primeiro comando
+    # que precisasse do registry chegasse antes do primeiro tick desses
+    # loops (ex: logo após reiniciar o cbos-backend), o registry ficava
+    # com uma lista vazia/parcial PRA SEMPRE (loaded=True nunca mais
+    # deixava recarregar), e "desliga a luz da cozinha"/"status de X"
+    # silenciosamente não achava nada até alguém falar "atualizar
+    # dispositivos" na mão. Reproduzido ao vivo logo depois de um restart.
     def ensure_loaded(self):
 
-        if not self.loaded:
-            self.load()
+        self.load()
 
     def is_loaded(self):
         return self.loaded

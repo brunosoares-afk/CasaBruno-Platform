@@ -369,7 +369,10 @@ class IntentEngine:
         # risco físico demais pra um match por substring).
         if "dispositivos" in cmd and not self.contains_any(
             cmd,
-            ["ligar", "desligar", "acender", "apagar", "ativar", "desativar", "abrir", "fechar"]
+            [
+                "ligar", "desligar", "acender", "apagar", "ativar", "desativar", "abrir", "fechar",
+                "liga", "desliga", "acende", "apaga", "ativa", "desativa", "abre", "fecha",
+            ]
         ):
             return {
                 "type": "device_list"
@@ -400,6 +403,20 @@ class IntentEngine:
         # ligar/ativar — "ligar" é substring de "desligar" e "ativar"
         # é substring de "desativar", então checar ligar primeiro faz
         # todo comando de desligar cair (sempre) no turn_on por engano.
+        #
+        # As formas no infinitivo ("ligar"/"desligar") quase nunca são o
+        # que alguém realmente fala — o comum é o imperativo ("liga"/
+        # "desliga") — mas até aqui só o infinitivo era reconhecido nesse
+        # catch-all genérico (só havia gambiarras pontuais pra "liga a
+        # luz" e alguns pronomes cobrirem o imperativo). Achado testando
+        # ao vivo: "desliga a luz da cozinha" caía direto pro papo livre
+        # (LLM) em vez de executar, enquanto "liga a luz da cozinha"
+        # funcionava (via o bloco hardcoded específico da cozinha, linha
+        # ~137) — qualquer outro dispositivo por nome no imperativo (ex:
+        # "desliga o portão") tinha o mesmo problema silencioso. Mesma
+        # ordem desligar-antes-de-ligar se aplica aqui: "liga" é
+        # substring de "desliga", então checar desliga primeiro evita o
+        # mesmo bug de novo.
         # ==================================================
 
         if self.contains_any(
@@ -408,7 +425,11 @@ class IntentEngine:
                 "desligar",
                 "apagar",
                 "desativar",
-                "fechar"
+                "fechar",
+                "desliga",
+                "apaga",
+                "desativa",
+                "fecha",
             ]
         ):
             return self.device_action(cmd, "turn_off")
@@ -419,7 +440,11 @@ class IntentEngine:
                 "ligar",
                 "acender",
                 "ativar",
-                "abrir"
+                "abrir",
+                "liga",
+                "acende",
+                "ativa",
+                "abre",
             ]
         ):
             return self.device_action(cmd, "turn_on")
