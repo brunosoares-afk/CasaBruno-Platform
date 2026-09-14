@@ -179,5 +179,14 @@ class Settings:
         )
     )
 
+    # =====================================================
+    # CASA (app financeiro /opt/casa) — pro Fred registrar
+    # lançamentos direto de uma conversa (ver casa_finance_service.py)
+    # =====================================================
+
+    CASA_API_URL = os.getenv("CASA_API_URL", "")
+
+    CASA_TOKEN = os.getenv("CASA_TOKEN", "")
+
 
 settings = Settings()

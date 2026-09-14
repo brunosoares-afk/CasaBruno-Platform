@@ -124,6 +124,18 @@ def list_upcoming_events(max_results=10):
     return result.get("items", [])
 
 
+def _normalize_datetime(value):
+    """Garante segundos no formato RFC3339 que o Google exige.
+
+    O input <datetime-local> do navegador manda "AAAA-MM-DDTHH:MM" (sem
+    segundos) — o Google rejeita isso com um 400 genérico mesmo com
+    "timeZone" presente, então completamos com ":00" quando faltar.
+    """
+    if value.count(":") < 2:
+        value = f"{value}:00"
+    return value
+
+
 def create_event(summary, start_iso, end_iso, description=None):
     credentials = _load_credentials()
     if not credentials:
@@ -134,8 +146,8 @@ def create_event(summary, start_iso, end_iso, description=None):
     event = {
         "summary": summary,
         "description": description,
-        "start": {"dateTime": start_iso},
-        "end": {"dateTime": end_iso},
+        "start": {"dateTime": _normalize_datetime(start_iso), "timeZone": "America/Sao_Paulo"},
+        "end": {"dateTime": _normalize_datetime(end_iso), "timeZone": "America/Sao_Paulo"},
     }
 
     return service.events().insert(calendarId="primary", body=event).execute()

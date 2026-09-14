@@ -23,6 +23,7 @@ import CenasView from "./homeassistant/views/CenasView";
 import AutomacoesView from "./homeassistant/views/AutomacoesView";
 import RedeView from "./homeassistant/views/RedeView";
 import AgendaView from "./homeassistant/views/AgendaView";
+import FinancasView from "./homeassistant/views/FinancasView";
 
 const TABS = [
   { value: "inicio", label: "Início" },
@@ -33,6 +34,7 @@ const TABS = [
   { value: "automacoes", label: "Automações" },
   { value: "rede", label: "Rede" },
   { value: "agenda", label: "Agenda" },
+  { value: "financas", label: "Finanças" },
 ];
 
 export default function HomeAssistant() {
@@ -137,6 +139,7 @@ export default function HomeAssistant() {
       {tab === "automacoes" && <AutomacoesView />}
       {tab === "rede" && <RedeView />}
       {tab === "agenda" && <AgendaView />}
+      {tab === "financas" && <FinancasView />}
 
     </>
   );

@@ -252,3 +252,31 @@ async def alert_link(data: LinkAlertRequest, background_tasks: BackgroundTasks):
     # e reportaria "falha" mesmo quando a mensagem sai normalmente depois.
     background_tasks.add_task(notify_service.notify, text)
     return {"success": True, "queued": True}
+
+
+# ======================================================
+# ALERTA DE PROJETO (hub de monitoramento do AgentCRM)
+# ======================================================
+# Chamado pelo poller de monitoramento do AgentCRM (2026-09-14) quando um dos
+# projetos do host muda de estado (no ar <-> fora do ar). Mesmo mecanismo de
+# X-Api-Key do alerta de link acima — quem chama é um serviço do próprio
+# host, não uma sessão de navegador logada.
+
+class ProjetoAlertRequest(BaseModel):
+
+    projeto: str
+    event: str  # "down" ou "up"
+    detalhe: str | None = None
+
+
+@router.post("/fred/alert/projeto", dependencies=[Depends(require_api_key)])
+async def alert_projeto(data: ProjetoAlertRequest, background_tasks: BackgroundTasks):
+    if data.event == "down":
+        text = f"⚠️ {data.projeto} caiu (parou de responder)."
+    else:
+        text = f"✅ {data.projeto} voltou ao ar."
+    if data.detalhe:
+        text += f" {data.detalhe}"
+
+    background_tasks.add_task(notify_service.notify, text)
+    return {"success": True, "queued": True}

@@ -1,6 +1,7 @@
+import json
 import logging
 
-from app.services import crm_mcp_client, gemini_service, memory_service
+from app.services import casa_finance_service, crm_mcp_client, gemini_service, memory_service
 from app.services.expressions import pick
 from app.services.homeassistant_service import get_states
 
@@ -23,6 +24,16 @@ CRM_SYSTEM_PROMPT_EXTRA = (
     "pedir pra anotar algo sobre um contato, ou perguntar sobre follow-ups pendentes. "
     "Procure o contato (find_contact) antes de criar um novo, pra não duplicar. "
     "Não force o uso disso em papo que não tem nada a ver com clientes/negócio."
+)
+
+FINANCE_SYSTEM_PROMPT_EXTRA = (
+    "\n\nVocê também pode registrar gastos e recebimentos na planilha financeira "
+    "da casa, quando a pessoa comentar isso numa frase solta (ex: 'gastei 50 no "
+    "mercado', 'recebi 200 de salário', 'paguei 30 de uber no pix'). Extraia valor, "
+    "tipo (entrada/saída) e uma descrição curta; categoria e meio de pagamento só "
+    "se der pra inferir com confiança — não force. Depois de registrar, confirme "
+    "rapidinho o que foi anotado (valor e descrição). Só use isso se a frase for "
+    "claramente sobre dinheiro entrando ou saindo, nunca chute um registro."
 )
 
 GREETING_SYSTEM_PROMPT = (
@@ -185,22 +196,48 @@ class LLMService:
             # segue sem o contexto de perfil/histórico.
             system, prefix = SYSTEM_PROMPT, ""
 
-        # CRM só entra no papo livre (não em greet/summarize, que são tarefas
-        # internas específicas) — e só se o servidor MCP realmente respondeu,
-        # pra nunca travar/piorar uma resposta por causa de um serviço externo.
+        # CRM e Finanças só entram no papo livre (não em greet/summarize, que
+        # são tarefas internas específicas) — e cada um só se o serviço dele
+        # realmente respondeu, pra nunca travar/piorar uma resposta por causa
+        # de um serviço externo.
         crm_disponivel = False
         try:
             crm_disponivel = crm_mcp_client.disponivel()
         except Exception:
             logger.warning("Checagem de disponibilidade do CRM falhou", exc_info=True)
 
+        finance_disponivel = False
         try:
-            if crm_disponivel:
+            finance_disponivel = casa_finance_service.disponivel()
+        except Exception:
+            logger.warning("Checagem de disponibilidade do Casa (finanças) falhou", exc_info=True)
+
+        tools = []
+        system_com_ferramentas = system
+        if crm_disponivel:
+            tools += crm_mcp_client.declaracoes_para_gemini()
+            system_com_ferramentas += CRM_SYSTEM_PROMPT_EXTRA
+        if finance_disponivel:
+            tools += casa_finance_service.declaracoes_para_gemini()
+            system_com_ferramentas += FINANCE_SYSTEM_PROMPT_EXTRA
+
+        # pessoa que está registrando o lançamento (0=Bruno, 1=Taiane, ver
+        # PESSOAS em /opt/casa/publico/index.html) — decidido aqui por quem
+        # está de fato falando com o Fred no canal, nunca pelo Gemini.
+        pessoa_casa = 1 if person == "Taiane" else 0
+
+        def _chamar_ferramenta(nome, argumentos):
+            if nome in casa_finance_service.TOOL_NAMES:
+                return json.dumps(casa_finance_service.chamar_ferramenta(nome, argumentos, pessoa_casa))
+            return crm_mcp_client.chamar_ferramenta(nome, argumentos)
+
+        try:
+            if tools:
                 answer = gemini_service.generate_with_tools(
-                    system + CRM_SYSTEM_PROMPT_EXTRA,
+                    system_com_ferramentas,
                     f"{prefix}{prompt}",
-                    crm_mcp_client.declaracoes_para_gemini(),
-                    crm_mcp_client.chamar_ferramenta,
+                    tools,
+                    _chamar_ferramenta,
                     timeout=min(timeout, 30),
                 )
             else:

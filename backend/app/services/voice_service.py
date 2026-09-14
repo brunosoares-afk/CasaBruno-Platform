@@ -1,5 +1,4 @@
 import asyncio
-import io
 import logging
 import shutil
 import subprocess
@@ -9,9 +8,8 @@ from pathlib import Path
 
 import requests
 from wyoming.asr import Transcribe, Transcript
-from wyoming.audio import AudioChunk, AudioStart, AudioStop, wav_to_chunks
+from wyoming.audio import wav_to_chunks
 from wyoming.client import AsyncTcpClient
-from wyoming.tts import Synthesize, SynthesizeVoice
 
 from app.services import gemini_service
 
@@ -26,25 +24,20 @@ logger = logging.getLogger(__name__)
 WHISPER_HOST = "127.0.0.1"
 WHISPER_PORT = 10301
 
-# TTS via Piper local (container cbos-piper, Fase 6 da remoção do HA) —
-# até 2026-08-16 isso ia pro HA Cloud (Nabu Casa, voz neural Azure); a
-# qualidade era melhor, mas todo canal (WhatsApp, Jarvis, avisos
-# proativos) dependia da HA pra falar. Trocado de volta pro Piper
-# (achado "robótico demais" quando isso foi decidido antes, ver memória
-# casa-bruno-custom-frontend-dashboard) como troca consciente de
-# qualidade por independência — decisão do usuário, não peso técnico.
-PIPER_HOST = "127.0.0.1"
-PIPER_PORT = 10200
+# Piper (container cbos-piper) foi desativado por decisão do usuário
+# 2026-09-13: só Gemini fala por Fred agora, sem fallback local pra vozes
+# pt_BR-* — se o Gemini falhar, o Fred fica mudo nesse canal em vez de
+# trocar de voz no meio da conversa. Kokoro continua ativo pra quem
+# escolhe manualmente uma voz pm_/pf_ (ver abaixo), não é afetado.
+# Container cbos-piper parado + desabilitado no systemd/docker.
 
 # Kokoro-82M (cbos-kokoro, porta 10300) — testado com Bruno em 2026-08-18,
 # prosódia melhor que o Piper mas: (1) ~2.3x mais lento que tempo real
 # nesta CPU (sem AVX2/FMA, só 2 FPUs reais), e (2) a faixa "p"/pt-br do
 # Kokoro soa com sotaque de Portugal apesar do rótulo — confirmado que a
 # fonemização espeak-ng já usa pt-br corretamente, então é característica
-# do modelo/voz mesmo, não bug de config. Por isso não é o padrão: fica
-# disponível pra quem escolher manualmente (Configurações), mas o padrão
-# volta a ser o Piper (voz brasileira de verdade). Vozes "pm_"/"pf_" vão
-# pro Kokoro; o resto (pt_BR-*) continua no Piper.
+# do modelo/voz mesmo, não bug de config. Vozes "pm_"/"pf_" vão pro
+# Kokoro; o resto (pt_BR-*) não tem mais motor local (Piper desativado).
 KOKORO_URL = "http://127.0.0.1:10300/synthesize"
 KOKORO_TIMEOUT = 90
 
@@ -101,44 +94,6 @@ async def transcribe(audio_bytes: bytes) -> str:
                     return Transcript.from_event(event).text.strip()
 
 
-async def piper_tts(text: str, voice: str) -> bytes:
-    """Texto -> wav (bytes) via nosso container Piper standalone (Wyoming,
-    porta 10200, ver [[casa-bruno-ha-removal-phases-4-6]] Fase 6)."""
-
-    async with AsyncTcpClient(PIPER_HOST, PIPER_PORT) as client:
-        await client.write_event(
-            Synthesize(text=text, voice=SynthesizeVoice(name=voice)).event()
-        )
-
-        wav_params = None
-        pcm = bytearray()
-
-        while True:
-            event = await client.read_event()
-            if event is None:
-                break
-            if AudioStart.is_type(event.type):
-                start = AudioStart.from_event(event)
-                wav_params = (start.rate, start.width, start.channels)
-            elif AudioChunk.is_type(event.type):
-                pcm.extend(AudioChunk.from_event(event).audio)
-            elif AudioStop.is_type(event.type):
-                break
-
-    if wav_params is None:
-        raise RuntimeError("Piper não retornou áudio")
-
-    rate, width, channels = wav_params
-    buf = io.BytesIO()
-    with wave.open(buf, "wb") as wav_file:
-        wav_file.setnchannels(channels)
-        wav_file.setsampwidth(width)
-        wav_file.setframerate(rate)
-        wav_file.writeframes(bytes(pcm))
-
-    return buf.getvalue()
-
-
 def _kokoro_tts_sync(text: str, voice: str) -> bytes:
     resp = requests.post(
         KOKORO_URL,
@@ -156,41 +111,38 @@ async def kokoro_tts(text: str, voice: str) -> bytes:
 
 
 async def tts_dispatch(text: str, voice: str) -> bytes:
-    # Gemini TTS é o padrão agora (decisão do usuário 2026-09-04, aceitando
-    # os ~3-4s de latência extra por frase vs. Piper/Kokoro locais — ver
-    # [[casa-bruno-gemini-voz-completa-2026-09-04]]). Cai pro motor local
-    # (respeitando a voz escolhida) se o Gemini falhar, mesmo padrão do
-    # llm_service pro texto — nunca deixa o Fred mudo.
+    # Gemini TTS é o único motor agora (decisão do usuário 2026-09-13:
+    # Piper desativado de propósito, sem fallback local pra vozes pt_BR-*
+    # — ver [[casa-bruno-gemini-voz-completa-2026-09-04]]). Kokoro segue
+    # como exceção pra quem escolhe manualmente uma voz pm_/pf_.
     #
-    # Antes de cair pro local, tenta mais uma vez: na prática quase toda
-    # falha aqui é um TimeoutError isolado do Gemini (~1-2x/dia, sem
-    # padrão claro), não uma queda real do serviço — e cair pro Piper/
-    # Kokoro troca a voz do Fred no meio da conversa, o que o Bruno notou
-    # e pediu pra reduzir (2026-09-12). Um retry rápido resolve a maioria
-    # sem herdar o custo de uma retentativa em rate-limit (429), que quase
-    # nunca se resolve em 1s e só atrasa a resposta à toa.
+    # Antes de desistir, tenta mais uma vez: na prática quase toda falha
+    # aqui é um TimeoutError isolado do Gemini (~1-2x/dia, sem padrão
+    # claro), não uma queda real do serviço. Um retry rápido resolve a
+    # maioria sem herdar o custo de uma retentativa em rate-limit (429),
+    # que quase nunca se resolve em 1s e só atrasa a resposta à toa.
     if gemini_service.is_configured():
         try:
             return await gemini_tts(text)
         except Exception as first_err:
             is_rate_limited = "429" in str(first_err)
             if is_rate_limited:
-                logger.warning("Gemini TTS com rate limit (429), caindo pro motor local", exc_info=True)
+                logger.warning("Gemini TTS com rate limit (429)", exc_info=True)
             else:
-                logger.warning("Gemini TTS falhou, tentando mais uma vez antes do motor local", exc_info=True)
+                logger.warning("Gemini TTS falhou, tentando mais uma vez", exc_info=True)
                 await asyncio.sleep(1)
                 try:
                     return await gemini_tts(text)
                 except Exception:
-                    logger.warning("Gemini TTS falhou de novo, caindo pro motor local", exc_info=True)
+                    logger.warning("Gemini TTS falhou de novo", exc_info=True)
 
     if _is_kokoro_voice(voice):
         return await kokoro_tts(text, voice)
-    return await piper_tts(text, voice)
+    raise RuntimeError("Gemini TTS indisponível e Piper foi desativado — sem motor local para essa voz")
 
 
 async def synthesize(text: str, voice: str | None = None) -> bytes:
-    """Texto -> áudio ogg/opus (nota de voz do WhatsApp) via Piper/Kokoro local."""
+    """Texto -> áudio ogg/opus (nota de voz do WhatsApp) via Gemini (ou Kokoro, se a voz escolhida for pm_/pf_)."""
 
     wav_bytes = await tts_dispatch(text, voice or DEFAULT_TTS_VOICE)
 
@@ -212,6 +164,6 @@ async def synthesize(text: str, voice: str | None = None) -> bytes:
 
 
 async def synthesize_wav(text: str, voice: str | None = None) -> bytes:
-    """Texto -> áudio wav (tocável direto no navegador) via Piper/Kokoro local."""
+    """Texto -> áudio wav (tocável direto no navegador) via Gemini (ou Kokoro, se a voz escolhida for pm_/pf_)."""
 
     return await tts_dispatch(text, voice or DEFAULT_TTS_VOICE)
