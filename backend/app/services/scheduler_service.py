@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from app.integrations.google import calendar as google_calendar
-from app.services import memory_service, notify_service, scenes_service, weather_service
+from app.services import automations_service, memory_service, notify_service, scenes_service, weather_service
 from app.services.homeassistant_service import get_states
 from app.services.fred_memory import memory as fred_memory
 
@@ -73,6 +73,8 @@ def _now_weekday() -> int:
 
 
 async def _weather_job():
+    if not automations_service.is_enabled("aviso_previsao_tempo"):
+        return
     if _job_already_ran_today("weather") or _now_hour() < WEATHER_HOUR:
         return
     _mark_job_ran("weather")
@@ -92,6 +94,8 @@ async def _weather_job():
 async def _agenda_job():
     global _agenda_not_connected_notified
 
+    if not automations_service.is_enabled("aviso_agenda_amanha"):
+        return
     if _job_already_ran_today("agenda") or _now_hour() < AGENDA_HOUR:
         return
     _mark_job_ran("agenda")
@@ -130,6 +134,8 @@ async def _agenda_job():
 
 
 async def _lamp_job():
+    if not automations_service.is_enabled("aviso_luz_ligada_dia"):
+        return
     if _job_already_ran_today("lamp"):
         return
 
@@ -169,6 +175,8 @@ async def _lamp_job():
 
 
 async def _reminders_job():
+    if not automations_service.is_enabled("lembretes_agendados"):
+        return
     try:
         due = memory_service.get_due_reminders(_today())
         for reminder in due:
@@ -187,6 +195,8 @@ CHANNEL_LABEL = {"voice": "voz", "whatsapp": "WhatsApp", "web": "painel"}
 
 
 async def _weekly_summary_job():
+    if not automations_service.is_enabled("resumo_semanal"):
+        return
     if _now_weekday() != SUMMARY_WEEKDAY or _now_hour() < SUMMARY_HOUR:
         return
     if _job_already_ran_this_week("weekly_summary"):

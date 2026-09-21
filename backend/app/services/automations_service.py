@@ -114,6 +114,37 @@ AUTOMATIONS = [
         "label": "Modo Férias",
         "description": "Alterna a luz da cozinha em horários aleatórios à noite pra simular presença. Ative manualmente quando viajar — desligado por padrão.",
     },
+    # As 5 abaixo são os jobs do scheduler_service.py (não moravam aqui, cada um só
+    # verificava hora/dia direto) — trazidos pra esse mesmo mecanismo de toggle
+    # 2026-09-21 (pedido do Bruno: "mudo só as automações/rotinas, resto continua" —
+    # ver memória da sessão) pra poder desligar tudo que dispara sozinho de uma vez,
+    # pela mesma tela Cenas, sem precisar desligar o backend inteiro (que também
+    # atende o WhatsApp).
+    {
+        "key": "aviso_previsao_tempo",
+        "label": "Bom dia com previsão do tempo",
+        "description": "Manda a previsão do tempo de manhã (uma vez por dia).",
+    },
+    {
+        "key": "aviso_agenda_amanha",
+        "label": "Agenda de amanhã",
+        "description": "Avisa à noite o que tem na Agenda do Google pro dia seguinte.",
+    },
+    {
+        "key": "aviso_luz_ligada_dia",
+        "label": "Luz ligada de dia",
+        "description": "Pergunta se pode apagar quando alguma luz fica ligada com o sol já alto.",
+    },
+    {
+        "key": "lembretes_agendados",
+        "label": "Lembretes agendados",
+        "description": "Avisa quando um lembrete cadastrado vence.",
+    },
+    {
+        "key": "resumo_semanal",
+        "label": "Resumo semanal de uso",
+        "description": "Manda um resumo de quantos comandos o Fred recebeu na semana.",
+    },
 ]
 
 # modo_ferias precisa nascer DESLIGADO (diferente de todas as outras
@@ -131,6 +162,12 @@ _AUTOMATION_KEYS = {a["key"] for a in AUTOMATIONS}
 def _is_enabled(key: str) -> bool:
     value = fred_memory.recall(None, _ENABLED_KEY_PREFIX + key)
     return True if value is None else bool(value)
+
+
+# Alias público — scheduler_service.py (jobs agendados, não só as 12 automações
+# de state_changed) também consulta isso pra saber se deve rodar.
+def is_enabled(key: str) -> bool:
+    return _is_enabled(key)
 
 
 def set_enabled(key: str, enabled: bool) -> None:
