@@ -404,7 +404,7 @@ function GoogleCalendarSection() {
                     />
                     <TextField
                         label="Redirect URI"
-                        placeholder="https://hda08fx9s7v.sn.mynetname.net/casa/api/google/calendar/callback"
+                        placeholder="https://742e077a94a9.sn.mynetname.net/casa/api/google/calendar/callback"
                         value={data.redirect_uri}
                         onChange={(e) => setData({ ...data, redirect_uri: e.target.value })}
                     />

@@ -8,7 +8,7 @@ from pathlib import Path
 from app.services import gemini_service, voice_service
 
 AUDIO_DIR = Path("/opt/CasaBruno-Platform/backend/tts_audio")
-PUBLIC_BASE_URL = "https://hda08fx9s7v.sn.mynetname.net/alexa/audio"
+PUBLIC_BASE_URL = "https://742e077a94a9.sn.mynetname.net/alexa/audio"
 
 # A Alexa derruba o skill se o webhook não responder em poucos segundos —
 # por isso o Gemini TTS entra com timeout curto (5s) aqui, diferente dos

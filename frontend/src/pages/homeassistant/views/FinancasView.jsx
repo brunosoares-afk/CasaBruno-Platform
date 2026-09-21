@@ -10,7 +10,7 @@ import { Box } from "@mui/material";
 // CONFIG.API_URL sozinho (ver publico/index.html). Login próprio (não
 // depende mais de um token fixo — ver [[casa-token-leak-fixed-2026-09-13]]),
 // então expor isso publicamente é seguro.
-const CASA_URL = "https://hda08fx9s7v.sn.mynetname.net/financas/";
+const CASA_URL = "https://742e077a94a9.sn.mynetname.net/financas/";
 
 export default function FinancasView() {
   return (
