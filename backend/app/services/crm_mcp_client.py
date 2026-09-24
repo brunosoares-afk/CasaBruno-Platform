@@ -102,6 +102,10 @@ class _PonteMcp:
                 "parameters": _limpar_schema_para_gemini(t.input_schema),
             }
             for t in self._ferramentas
+            # 2026-09-24: o AgentCRM ganhou ferramentas geradas (api_get_*, sqlite_*) pra outros
+            # clientes MCP; o Fred continua só com as ferramentas feitas à mão (menos tokens por
+            # chamada e sem SQL livre num assistente de voz).
+            if not t.name.startswith(("api_get", "api_list", "sqlite_"))
         ]
 
     def _aceita_campo_agente(self, nome_ferramenta: str, campo: str) -> bool:
