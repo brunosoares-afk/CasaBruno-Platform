@@ -5,6 +5,7 @@ import Sidebar from "./Sidebar";
 
 import HomeAssistant from "../pages/HomeAssistant";
 import Gerencia from "../pages/Gerencia";
+import Manual from "../pages/Manual";
 
 import { Box, Drawer, useMediaQuery, useTheme } from "@mui/material";
 
@@ -38,6 +39,9 @@ export default function Layout() {
 
             case "gerencia":
                 return <Gerencia />;
+
+            case "manual":
+                return <Manual />;
 
             default:
                 return <HomeAssistant />;

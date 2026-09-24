@@ -17,6 +17,11 @@ const itens = [
     {
         nome: "Gerência",
         page: "gerencia"
+    },
+
+    {
+        nome: "Manual",
+        page: "manual"
     }
 
 ];
