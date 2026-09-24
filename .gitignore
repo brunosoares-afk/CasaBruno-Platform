@@ -79,3 +79,6 @@ backend/tts_audio/
 
 # Credenciais de sessão Amazon (access/refresh token, cookies, chave privada do device)
 alexa-bridge/login_data.json
+
+# backups de config do roteador (runtime)
+backend/backups/
