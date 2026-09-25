@@ -1,3 +1,14 @@
+// Segurança (2026-09-25): a libsignal (usada pelo Baileys) imprime a sessão inteira do WhatsApp
+// — com as CHAVES PRIVADAS — ao fechar/trocar sessão ("Closing session: ..."). Isso ia parar no
+// log. Descarta só essas mensagens; o resto do console continua igual.
+for (const nivel of ["log", "info", "warn"]) {
+  const original = console[nivel].bind(console);
+  console[nivel] = (...args) => {
+    if (typeof args[0] === "string" && /^(Closing session|Removing old closed session|Closing open session)/.test(args[0])) return;
+    original(...args);
+  };
+}
+
 const {
   default: makeWASocket,
   useMultiFileAuthState,
