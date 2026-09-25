@@ -1,5 +1,6 @@
 import logging
 
+import time
 import tinytuya
 
 from app.core.config.config import config
@@ -39,21 +40,28 @@ def _device(device_key: str) -> tinytuya.OutletDevice:
     return dev
 
 
-def get_status(device_key: str) -> bool | None:
+def _ler_status_uma_vez(device_key: str):
     try:
         result = _device(device_key).status()
-    except Exception:
-        logger.warning("Falha de conexão ao ler status do Tuya local: %s", device_key, exc_info=False)
-        return None
-
+    except Exception as e:  # noqa: BLE001
+        return None, f"falha de conexão ({e})"
     dps = result.get("dps") if isinstance(result, dict) else None
     if not dps or "1" not in dps:
-        logger.warning(
-            "Resposta Tuya sem 'dps' pro dispositivo %s (resposta: %s)", device_key, result
-        )
-        return None
+        return None, result
+    return bool(dps["1"]), None
 
-    return bool(dps["1"])
+
+def get_status(device_key: str) -> bool | None:
+    # Só LEITURA do estado — por isso pode repetir sem risco (nunca repete turn_on/turn_off, que
+    # acionam o portão). 2026-09-25: o portão perde ~20% dos pacotes (Wi-Fi fraco onde ele fica),
+    # então 1 tentativa a mais evita marcar "sem resposta" por um pacote perdido.
+    estado, erro = _ler_status_uma_vez(device_key)
+    if estado is None:
+        time.sleep(1.5)
+        estado, erro = _ler_status_uma_vez(device_key)
+    if estado is None:
+        logger.warning("Tuya %s sem resposta depois de 2 tentativas: %s", device_key, erro)
+    return estado
 
 
 def _send_ok(result) -> bool:
