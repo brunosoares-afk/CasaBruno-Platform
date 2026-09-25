@@ -36,7 +36,7 @@ def generate(system: str, prompt: str, timeout: int = 30) -> str:
 
     resp = requests.post(
         _URL.format(model=settings.GEMINI_MODEL),
-        params={"key": settings.GEMINI_API_KEY},
+        headers={"x-goog-api-key": settings.GEMINI_API_KEY},  # no cabeçalho, não na URL (a URL ia parar no log de erro)
         json={
             "systemInstruction": {"parts": [{"text": system}]},
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
@@ -75,7 +75,7 @@ def generate_with_tools(system: str, prompt: str, tools: list, chamar_ferramenta
     for _ in range(MAX_RODADAS_FERRAMENTA):
         resp = requests.post(
             _URL.format(model=settings.GEMINI_MODEL),
-            params={"key": settings.GEMINI_API_KEY},
+            headers={"x-goog-api-key": settings.GEMINI_API_KEY},  # no cabeçalho, não na URL (a URL ia parar no log de erro)
             json={
                 "systemInstruction": {"parts": [{"text": system}]},
                 "contents": contents,
@@ -139,7 +139,7 @@ def synthesize(text: str, voice: str = TTS_VOICE, timeout: int = 30) -> bytes:
 
     resp = requests.post(
         _URL.format(model=_TTS_MODEL),
-        params={"key": settings.GEMINI_API_KEY},
+        headers={"x-goog-api-key": settings.GEMINI_API_KEY},  # no cabeçalho, não na URL (a URL ia parar no log de erro)
         json={
             "contents": [{"parts": [{"text": text}]}],
             "generationConfig": {
